@@ -84548,6 +84548,7 @@
                     "importPolicy" : "~PEER_IMPORT_POLICY:192.168.1.5/32~",
                     "routeReflectorClient" : false
                   },
+                  "something" : 445,
                   "localAs" : 65500,
                   "localIp" : "192.168.1.2",
                   "peerAddress" : "192.168.1.5",
