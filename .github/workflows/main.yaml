@@ -15,8 +15,7 @@ jobs:
 
       - name: Grunt global install
         run: |
-          yarn global add grunt-cli bower firebase-tools@5.x
-          echo "::add-path::$(yarn global bin)"
+          sudo yarn global add grunt-cli bower firebase-tools@5.x
 
       - name: ci
         run: |
