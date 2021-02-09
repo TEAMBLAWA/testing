@@ -13,8 +13,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Grunt install
-        run: yarn global install grunt
+      - name: Grunt global install
+        run: yarn global add grunt
 
       - name: ci
         run: |
