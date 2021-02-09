@@ -13,6 +13,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Update OS
-        run: sh ./scripts/before_install.sh
+      - name: ci
+        run: |
+        bash -e ./scripts/before_install.sh
+        bash -e ./scripts/build.sh
         
