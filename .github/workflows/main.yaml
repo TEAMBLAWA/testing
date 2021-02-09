@@ -10,9 +10,9 @@ jobs:
 
       - uses: actions/setup-node@v2
       - name: Setup Node v14
-        with:
+      - with:
           node-version: '14'
 
       - name: Update OS
-        run: sh ./scripts/before_install.sh
+      - run: sh ./scripts/before_install.sh
         
