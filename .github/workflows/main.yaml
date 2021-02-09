@@ -15,6 +15,6 @@ jobs:
 
       - name: ci
         run: |
-        bash -e ./scripts/before_install.sh
-        bash -e ./scripts/build.sh
+          bash -e ./scripts/before_install.sh
+          bash -e ./scripts/build.sh
         
