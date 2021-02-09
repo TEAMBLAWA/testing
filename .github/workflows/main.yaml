@@ -14,7 +14,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Grunt global install
-        run: yarn global add grunt
+        run: |
+          yarn global add grunt-cli bower firebase-tools@5.x
+          echo "::add-path::$(yarn global bin)"
 
       - name: ci
         run: |
