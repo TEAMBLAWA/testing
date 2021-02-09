@@ -2,15 +2,14 @@ name: Build server and run linter
 on: pull_request
 jobs:
   build:
-    name: Build and upload
     runs-on: ubuntu-latest
     steps:
       # Client build
+      - uses: actions/checkout@v2
       - name: Checkout
-        uses: actions/checkout@v2
 
-      - name: Setup Node v14
       - uses: actions/setup-node@v2
+      - name: Setup Node v14
         with:
           node-version: '14'
 
