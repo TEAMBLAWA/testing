@@ -1,4 +1,4 @@
-name: Build server and run linter
+name: Build server
 on: pull_request
 jobs:
   build:
@@ -12,9 +12,21 @@ jobs:
       
       - name: checkout
         uses: actions/checkout@v2
+      
+      - name: Install nvm
+        shell: bash -l {0}
+        run: |
+          cd ..
+          echo $HOME
+          export NVM_DIR="$HOME/.nvm"
+          mkdir $NVM_DIR
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
+          echo "source $NVM_DIR/nvm.sh --install" >> "$HOME/.bash_profile"
+          cd -
+          source $HOME/.bash_profile
+          nvm install
 
       - name: ci
-        shell: bash -l -eo pipefail {0}
         run: |
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
