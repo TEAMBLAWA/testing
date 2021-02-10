@@ -12,13 +12,6 @@ jobs:
       
       - name: checkout
         uses: actions/checkout@v2
-
-      - name: ci
-        run: |
-          bash -e ./scripts/before_install.sh
-          bash -e ./scripts/build.sh
-      - name: cleanup
-        run: bash -e ./scripts/cleanup.sh
       
       - name: yarn install
         run: yarn install --pure-lockfile
@@ -52,6 +45,14 @@ jobs:
 
       - name: back to root
         run: cd ..
+
+      - name: ci
+        run: |
+          bash -e ./scripts/before_install.sh
+          bash -e ./scripts/build.sh
+
+      - name: cleanup
+        run: bash -e ./scripts/cleanup.sh
       
       - name: cleanup on failure
         if: ${{ failure() }}
