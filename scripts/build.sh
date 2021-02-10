@@ -10,7 +10,6 @@ mkdir shippable
 echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
 
 echo "Building and running tests"
-sudo nvm use "14"
 # Installing and running yarn directly uses an old version for some reason, and runs against an
 # old version of Node, failing the engine prereq.  Using npx appears to be a workaround.
 npx yarn install --pure-lockfile
