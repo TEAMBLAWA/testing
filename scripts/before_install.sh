@@ -12,3 +12,4 @@ node --version
 yarn --version
 yarn global add grunt-cli bower firebase-tools@5.x
 echo "$(yarn global bin)" >> $GITHUB_PATH
+grunt --version
