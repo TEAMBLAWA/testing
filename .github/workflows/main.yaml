@@ -20,6 +20,8 @@ jobs:
           bash -e ./scripts/build.sh
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
+      
+      - name: cleanup on failure
         if: ${{ failure() }}
         run: bash -e ./scripts/cleanup.sh
         
