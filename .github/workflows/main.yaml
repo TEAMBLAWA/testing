@@ -20,39 +20,38 @@ jobs:
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
       
-      - name: installs
-        - name: yarn install
-          run: yarn install --pure-lockfile
+      - name: yarn install
+        run: yarn install --pure-lockfile
 
-        - name: bower
-          uses: nick-invision/retry@v2
-          with:
-            timeout_seconds: 30
-            max_attempts: 3
-            command: bower install --allow-root --force-latest
+      - name: bower
+        uses: nick-invision/retry@v2
+        with:
+          timeout_seconds: 30
+          max_attempts: 3
+          command: bower install --allow-root --force-latest
 
-        - name: enter diff_worker
-          run: cd diff_worker
-        
-        - name: diff_worker
-          uses: nick-invision/retry@v2
-          with:
-            timeout_seconds: 30
-            max_attempts: 3
-            command: bower install --allow-root --force-latest
-        
-        - name: enter truss_worker
-          run: cd ../truss_worker
-        
-        - name: truss_worker
-          uses: nick-invision/retry@v2
-          with:
-            timeout_seconds: 30
-            max_attempts: 3
-            command: bower install --allow-root --force-latest
+      - name: enter diff_worker
+        run: cd diff_worker
+      
+      - name: diff_worker
+        uses: nick-invision/retry@v2
+        with:
+          timeout_seconds: 30
+          max_attempts: 3
+          command: bower install --allow-root --force-latest
+      
+      - name: enter truss_worker
+        run: cd ../truss_worker
+      
+      - name: truss_worker
+        uses: nick-invision/retry@v2
+        with:
+          timeout_seconds: 30
+          max_attempts: 3
+          command: bower install --allow-root --force-latest
 
-        - name: back to root
-          run: cd ..
+      - name: back to root
+        run: cd ..
       
       - name: cleanup on failure
         if: ${{ failure() }}
