@@ -15,6 +15,7 @@ jobs:
 
       - name: ci
         run: |
+          yarn
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
         
