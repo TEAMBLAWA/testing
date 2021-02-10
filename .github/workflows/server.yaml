@@ -16,7 +16,6 @@ jobs:
       - name: ci
         shell: bash -l {0}
         run: |
-          nvm install 14
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
       
