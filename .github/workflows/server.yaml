@@ -1,0 +1,27 @@
+name: Build server and run linter
+on: pull_request
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Client build
+      - name: setup Node v14
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: ci
+        run: |
+          bash -e ./scripts/before_install.sh
+          bash -e ./scripts/build.sh
+      
+      - name: cleanup
+        run: bash -e ./scripts/cleanup.sh
+      
+      - name: cleanup on failure
+        if: ${{ failure() }}
+        run: bash -e ./scripts/cleanup.sh
+        
