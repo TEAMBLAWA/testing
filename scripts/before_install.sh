@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-set -e
+set -eo pipefail
 
 if [[ "$BRANCH" = "release" && "$PULL_REQUEST" = "false" ]]; then
 
