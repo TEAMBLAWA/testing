@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-set -e
+set -eo pipefail
 export PATH=$PATH:~/google-cloud-sdk/bin
 export BUILD_GROUP_NUMBER=$(echo $BUILD_NUMBER | sed 's/\..*//')
 
