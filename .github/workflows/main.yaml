@@ -5,17 +5,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Client build
-      - name: Setup Node v14
+      - name: setup Node v14
         uses: actions/setup-node@v2
         with:
           node-version: '14'
       
-      - name: Checkout
+      - name: checkout
         uses: actions/checkout@v2
+
+      - name: install
+        run: bash -e ./scripts/instll.sh
 
       - name: ci
         run: |
-          yarn
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
       - name: cleanup
