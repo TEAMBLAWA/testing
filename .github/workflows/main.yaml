@@ -13,10 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Grunt global install
-        run: |
-          npm i -g grunt-cli bower firebase-tools@5.x
-
       - name: ci
         run: |
           bash -e ./scripts/before_install.sh

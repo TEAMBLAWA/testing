@@ -10,4 +10,5 @@ sudo apt-get -qq update && sudo apt-get -qq -y install yarn
 
 node --version
 yarn --version
-sudo yarn global add grunt-cli bower firebase-tools@5.x
+yarn global add grunt-cli bower firebase-tools@5.x
+echo "$(yarn global bin)" >> $GITHUB_PATH
