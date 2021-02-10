@@ -21,4 +21,6 @@ jobs:
       - name: cleanup
         if: ${{ success() }}
         run: bash -e ./scripts/cleanup.sh
+        if: ${{ failure() }}
+        run: bash -e ./scripts/cleanup.sh
         
