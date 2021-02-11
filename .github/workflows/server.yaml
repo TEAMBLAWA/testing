@@ -30,6 +30,20 @@ jobs:
           BRANCH: ${{ github.ref }}
           BUILD_NUMBER: ${{ github.run_number }}
           PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWABLE_HOST_URL: ${{ secrets.REVIEWABLE_HOST_URL }}
+          REVIEWABLE_FIREBASE: ${{ secrets.REVIEWABLE_FIREBASE }}
+          REVIEWABLE_FIREBASE_PROJECT_ID: ${{ secrets.REVIEWABLE_FIREBASE_PROJECT_ID }}
+          REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyArk9DViC8pswhT_f4afh8ot203TvB46EE
+          REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }}
+          REVIEWABLE_CODE_EXECUTOR: ${{ secrets.REVIEWABLE_CODE_EXECUTOR }}
+          REVIEWABLE_GITHUB_CLIENT_ID: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_ID }}
+          REVIEWABLE_LOGGLY_SUBDOMAIN: ${{ secrets.REVIEWABLE_LOGGLY_SUBDOMAIN }}
+          REVIEWABLE_MIXPANEL_TOKEN: ${{ secrets.REVIEWABLE_MIXPANEL_TOKEN }}
+          REVIEWABLE_SMTP_FROM: ${{ secrets.REVIEWABLE_SMTP_FROM }}
+          REVIEWABLE_SMTP_BCC: ${{ secrets.REVIEWABLE_SMTP_FROM }}
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
