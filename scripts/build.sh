@@ -2,7 +2,7 @@
 
 set -e
 export PATH=$PATH:~/google-cloud-sdk/bin
-export BUILD_GROUP_NUMBER=$(echo $BUILD_NUMBER | sed 's/\..*//')
+export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + 2765) | sed 's/\..*//')
 
 rm -rf shippable
 mkdir shippable
@@ -16,7 +16,7 @@ npx yarn install --pure-lockfile
 npm run build
 npm run lint
 npm run test
-echo $BRANCH $PULL_REQUEST
+
 if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
   echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
 
