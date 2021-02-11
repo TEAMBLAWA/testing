@@ -4,12 +4,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Setting PULL_REQUEST
+      - name: Configuring env
         id: setpullrequest
         run: |
           PULL_REQUEST=$(cat $GITHUB_EVENT_PATH | jq -r ".pull_request.number")
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
-          echo "::set-output name=PULL_REQUEST::$PULL_REQUEST"
+          echo "PULL_REQUEST=$PULL_REQUEST" >> $GITHUB_ENV
+          echo "BRANCH=${{env.GITHUB_REF}}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${{env.GITHUB.RUN_NUMBER}}" >> $GITHUB_ENV
       # Client build
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -28,10 +30,6 @@ jobs:
         run: |
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
-        env:
-          BRANCH: ${{ env.GITHUB_REF }}
-          BUILD_NUMBER: ${{ env.GITHUB_RUN_NUMBER }}
-          PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
