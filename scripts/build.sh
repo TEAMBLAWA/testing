@@ -7,6 +7,7 @@ export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + 2765) | sed 's/\..*//')
 rm -rf shippable
 mkdir shippable
 
+echo $GITHUB_RUN_NUMBER
 echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
 
 echo "Building and running tests"
