@@ -30,6 +30,7 @@ jobs:
         env:
           BRANCH: ${{ env.GITHUB_REF }}
           BUILD_NUMBER: ${{ env.GITHUB_RUN_NUMBER }}
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
