@@ -30,7 +30,7 @@ jobs:
           bash -e ./scripts/build.sh
         env:
           BRANCH: ${{ github.ref }}
-          BUILD_NUMBER: ${{ env.GITHUB_RUN_NUMBER }}
+          BUILD_NUMBER: ${{ github.run_number }}
           PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
       - name: cleanup
