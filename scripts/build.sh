@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-set -eo pipefail
+set -e
 export PATH=$PATH:~/google-cloud-sdk/bin
 export BUILD_GROUP_NUMBER=$(echo $BUILD_NUMBER | sed 's/\..*//')
 
@@ -16,8 +16,8 @@ npx yarn install --pure-lockfile
 npm run build
 npm run lint
 npm run test
-
-if [[ "$BRANCH" = "release" && "$PULL_REQUEST" = "false" ]]; then
+echo $BRANCH $PULL_REQUEST
+if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
   echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
 
   echo "Creating Sentry release $BUILD_GROUP_NUMBER"
