@@ -23,8 +23,8 @@ jobs:
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
         env:
-          BRANCH: ${{ env.GITHUB_REF }}
-          BUILD_NUMBER: ${{ env.GITHUB_RUN_NUMBER }}
+          BRANCH: ${{ github.ref }}
+          BUILD_NUMBER: ${{ GITHUB_RUN_NUMBER }}
           PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
       - name: cleanup
