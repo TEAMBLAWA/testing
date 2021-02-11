@@ -1,8 +1,9 @@
 #!/usr/bin/bash
-
 set -e
 
-if [[ "$BRANCH" = "release" && "$PULL_REQUEST" = "false" ]]; then
+# if [[ -z "$PULL_REQUEST" ]]; then PULL_REQUEST = "false"; fi
+
+if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
 
   # Get the actual private key (passed through an env var) into the key file that gcloud demands.
   # We need to escape the \n escape sequences, so they'll make it into the JSON file unscathed.
