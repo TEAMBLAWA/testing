@@ -2,7 +2,7 @@
 
 set -e
 export PATH=$PATH:~/google-cloud-sdk/bin
-export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + 2765) | sed 's/\..*//')
+export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
 
 rm -rf shippable
 mkdir shippable
@@ -21,19 +21,19 @@ if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
   echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
 
   echo "Creating Sentry release $BUILD_GROUP_NUMBER"
-  curl -f -s -S -u $SENTRY_API_KEY: -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/ -H 'Content-Type: application/json' -d "{\"version\": \"$BUILD_GROUP_NUMBER\"}" || exit 1
+  curl -f -s -S -H "Authorization: Bearer $SENTRY_API_KEY" -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/ -H 'Content-Type: application/json' -d "{\"version\": \"$BUILD_GROUP_NUMBER\"}" || exit 1
   echo
   for filename in built/*; do
     if [ -f $filename ]; then
       echo "Uploading $filename to Sentry"
-      curl -f -s -S -u $SENTRY_API_KEY: -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/$BUILD_GROUP_NUMBER/files/ -F file=@$filename -F name="/usr/src/app/$filename" || exit 1
+      curl -f -s -S -H "Authorization: Bearer $SENTRY_API_KEY" -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/$BUILD_GROUP_NUMBER/files/ -F file=@$filename -F name="/usr/src/app/$filename" || exit 1
       echo
     fi
   done
   for filename in built/libs/*; do
     if [ -f $filename ]; then
       echo "Uploading $filename to Sentry"
-      curl -f -s -S -u $SENTRY_API_KEY: -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/$BUILD_GROUP_NUMBER/files/ -F file=@$filename -F name="/usr/src/app/$filename" || exit 1
+      curl -f -s -S -H "Authorization: Bearer $SENTRY_API_KEY" -X POST https://sentry.io/api/0/projects/$SENTRY_PROJECT/releases/$BUILD_GROUP_NUMBER/files/ -F file=@$filename -F name="/usr/src/app/$filename" || exit 1
       echo
     fi
   done

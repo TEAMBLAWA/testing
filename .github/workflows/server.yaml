@@ -15,6 +15,13 @@ jobs:
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
           echo "::set-output name=PULL_REQUEST::$PULL_REQUEST"
       # Client build
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          # project_id: ${{ secrets.GCP_PROJECT_ID }}
+          # service_account_key: ${{ secrets.GCP_SA_KEY }}
+          # export_default_credentials: true
+
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
@@ -24,6 +31,8 @@ jobs:
         with:
           node-version: '14'
       - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           bash -e ./scripts/before_install.sh
           bash -e ./scripts/build.sh
         env:
@@ -44,6 +53,9 @@ jobs:
           REVIEWABLE_MIXPANEL_TOKEN: ${{ secrets.REVIEWABLE_MIXPANEL_TOKEN }}
           REVIEWABLE_SMTP_FROM: ${{ secrets.REVIEWABLE_SMTP_FROM }}
           REVIEWABLE_SMTP_BCC: ${{ secrets.REVIEWABLE_SMTP_FROM }}
+          SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
+          CLOUD_PROJECT: ${{ secrets.CLOUD_PROJECT }}
+          LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh

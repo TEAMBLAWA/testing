@@ -1,8 +1,6 @@
 #!/usr/bin/bash
 set -e
 
-# if [[ -z "$PULL_REQUEST" ]]; then PULL_REQUEST = "false"; fi
-
 if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
 
   # Get the actual private key (passed through an env var) into the key file that gcloud demands.
@@ -11,13 +9,13 @@ if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
 
   sudo apt-get -qq update && sudo apt-get -qq -y install curl apt-transport-https
 
-  export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
-  echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
-  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+  # export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
+  # echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+  # curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
-  sudo apt-get -qq update && sudo apt-get -qq -y install google-cloud-sdk
+  # sudo apt-get -qq update && sudo apt-get -qq -y install google-cloud-sdk
 
-  gcloud auth activate-service-account --key-file=service_account_key.json --project=reviewable-prod
+  gcloud auth activate-service-account reviewable-dev-anthony-fd713@appspot.gserviceaccount.com --key-file=service_account_key.json --project=$CLOUD_PROJECT
   gcloud info
 
 fi
