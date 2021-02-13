@@ -15,7 +15,7 @@ if [[ "$BRANCH" =~ "/release" && "$PULL_REQUEST" = "false" ]]; then
 
   # sudo apt-get -qq update && sudo apt-get -qq -y install google-cloud-sdk
 
-  gcloud auth activate-service-account reviewable-dev-anthony-fd713@appspot.gserviceaccount.com --key-file=service_account_key.json --project=$CLOUD_PROJECT
+  # gcloud auth activate-service-account reviewable-dev-anthony-fd713@appspot.gserviceaccount.com --key-file=service_account_key.json --project=$CLOUD_PROJECT
   gcloud info
 
 fi
