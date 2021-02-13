@@ -2,7 +2,7 @@
 set -e
 
 if [[ "$BRANCH" =~ "\\release" && "$PULL_REQUEST" = "false" ]]; then
-
+  echo "This is the release branch but not a pull request"
   # Get the actual private key (passed through an env var) into the key file that gcloud demands.
   # We need to escape the \n escape sequences, so they'll make it into the JSON file unscathed.
   sed -i "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json
