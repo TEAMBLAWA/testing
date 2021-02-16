@@ -9,7 +9,6 @@ on:
 env:
   BRANCH: ${{ github.ref }}
   BUILD_NUMBER: ${{ github.run_number }}
-  PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
   SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
   SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,6 +44,8 @@ jobs:
 
       - name: Before install
         run: bash -e ./scripts/before_install.sh
+        env:
+          PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
           
       - name: Cache
         uses: actions/cache@v2
@@ -56,6 +57,7 @@ jobs:
         with:
           node-version: '14'
       - run: bash -e ./scripts/build.sh
+        env: PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
