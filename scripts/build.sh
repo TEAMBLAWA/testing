@@ -1,7 +1,6 @@
 #!/usr/bin/bash
 
 set -e
-export PATH=$PATH:~/google-cloud-sdk/bin
 export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
 
 rm -rf shippable
@@ -17,7 +16,8 @@ npm run build
 npm run lint
 npm run test
 
-if [[ "$BRANCH" =~ "/release" && "$PULL_REQUEST" = "false" ]]; then
+# BRANCH_REF is defined 'refs\heads\release' when testing locally
+if [[ ("$BRANCH" = "refs/heads/release" || "$BRANCH" = "\refs\heads\release") && "$PULL_REQUEST" = "false" ]]; then
   echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
 
   echo "Creating Sentry release $BUILD_GROUP_NUMBER"
@@ -38,7 +38,8 @@ if [[ "$BRANCH" =~ "/release" && "$PULL_REQUEST" = "false" ]]; then
     fi
   done
 
-  echo "Tagging git commit"
+  sudo add-apt-repository --yes ppa:git-core/ppa && sudo apt-get -qq update
+
   git tag -a "build-$BUILD_GROUP_NUMBER" -m "Build $BUILD_GROUP_NUMBER"
   git push --tags origin release
 

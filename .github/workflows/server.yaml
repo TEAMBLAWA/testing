@@ -4,6 +4,29 @@ on:
     branches:
       - release
   pull_request:
+  release:
+    types: [created, edited, published]
+env:
+  BRANCH: ${{ github.ref }}
+  BUILD_NUMBER: ${{ github.run_number }}
+  PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
+  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+  SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  REVIEWABLE_HOST_URL: ${{ secrets.REVIEWABLE_HOST_URL }}
+  REVIEWABLE_FIREBASE: ${{ secrets.REVIEWABLE_FIREBASE }}
+  REVIEWABLE_FIREBASE_PROJECT_ID: ${{ secrets.REVIEWABLE_FIREBASE_PROJECT_ID }}
+  REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyArk9DViC8pswhT_f4afh8ot203TvB46EE
+  REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }}
+  REVIEWABLE_CODE_EXECUTOR: ${{ secrets.REVIEWABLE_CODE_EXECUTOR }}
+  REVIEWABLE_GITHUB_CLIENT_ID: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_ID }}
+  REVIEWABLE_LOGGLY_SUBDOMAIN: ${{ secrets.REVIEWABLE_LOGGLY_SUBDOMAIN }}
+  REVIEWABLE_MIXPANEL_TOKEN: ${{ secrets.REVIEWABLE_MIXPANEL_TOKEN }}
+  REVIEWABLE_SMTP_FROM: ${{ secrets.REVIEWABLE_SMTP_FROM }}
+  REVIEWABLE_SMTP_BCC: ${{ secrets.REVIEWABLE_SMTP_FROM }}
+  SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
+  CLOUD_PROJECT: ${{ secrets.CLOUD_PROJECT }}
+  LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,47 +38,24 @@ jobs:
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
           echo "::set-output name=PULL_REQUEST::$PULL_REQUEST"
       # Client build
-      - name: Set up Cloud SDK
+      - name: Setup cloud SDK
         uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
 
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v1
+
+      - name: Before install
+        run: bash -e ./scripts/before_install.sh
+          
+      - name: Cache
+        uses: actions/cache@v2
         with:
           path: 'node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('yarn.lock') }}
-      - uses: actions/setup-node@v2
+      - name: Setup node
+        uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          bash -e ./scripts/before_install.sh
-          bash -e ./scripts/build.sh
-        env:
-          BRANCH: ${{ github.ref }}
-          BUILD_NUMBER: ${{ github.run_number }}
-          PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVIEWABLE_HOST_URL: ${{ secrets.REVIEWABLE_HOST_URL }}
-          REVIEWABLE_FIREBASE: ${{ secrets.REVIEWABLE_FIREBASE }}
-          REVIEWABLE_FIREBASE_PROJECT_ID: ${{ secrets.REVIEWABLE_FIREBASE_PROJECT_ID }}
-          REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyArk9DViC8pswhT_f4afh8ot203TvB46EE
-          REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }}
-          REVIEWABLE_CODE_EXECUTOR: ${{ secrets.REVIEWABLE_CODE_EXECUTOR }}
-          REVIEWABLE_GITHUB_CLIENT_ID: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_ID }}
-          REVIEWABLE_LOGGLY_SUBDOMAIN: ${{ secrets.REVIEWABLE_LOGGLY_SUBDOMAIN }}
-          REVIEWABLE_MIXPANEL_TOKEN: ${{ secrets.REVIEWABLE_MIXPANEL_TOKEN }}
-          REVIEWABLE_SMTP_FROM: ${{ secrets.REVIEWABLE_SMTP_FROM }}
-          REVIEWABLE_SMTP_BCC: ${{ secrets.REVIEWABLE_SMTP_FROM }}
-          SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
-          CLOUD_PROJECT: ${{ secrets.CLOUD_PROJECT }}
-          LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
+      - run: bash -e ./scripts/build.sh
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh

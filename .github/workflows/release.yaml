@@ -1,0 +1,11 @@
+name: Release
+on: 
+  release:
+    types: [created, edited, published]
+  
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: App Release
+        run: echo "New release"
