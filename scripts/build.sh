@@ -38,8 +38,9 @@ if [[ ("$BRANCH" = "refs/heads/release" || "$BRANCH" = "\refs\heads\release") &&
     fi
   done
 
-  sudo add-apt-repository --yes ppa:git-core/ppa && sudo apt-get -qq update
-
+  git config --global user.name "Anthony Kawa"
+  git config --global user.email "anthonyk2020@gmail.com"
+  echo "Tagging git commit"
   git tag -a "build-$BUILD_GROUP_NUMBER" -m "Build $BUILD_GROUP_NUMBER"
   git push --tags origin release
 
