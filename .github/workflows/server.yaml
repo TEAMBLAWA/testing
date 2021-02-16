@@ -40,15 +40,12 @@ jobs:
       - name: Setup cloud SDK
         uses: google-github-actions/setup-gcloud@master
 
-      - uses: actions/checkout@v1
-
-      - name: Before install
-        run: bash -e ./scripts/before_install.sh
-        env:
-          PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
-          
-      - name: Cache
-        uses: actions/cache@v2
+      - name: Build
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/cache@v2
         with:
           path: 'node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('yarn.lock') }}
@@ -56,7 +53,9 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - run: bash -e ./scripts/build.sh
+      - run: |
+          bash -e ./scripts/before_install.sh
+          bash -e ./scripts/build.sh
         env: 
           PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
