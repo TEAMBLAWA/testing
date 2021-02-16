@@ -57,7 +57,8 @@ jobs:
         with:
           node-version: '14'
       - run: bash -e ./scripts/build.sh
-        env: PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
+        env: 
+          PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
       
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
