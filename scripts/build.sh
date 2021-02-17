@@ -39,8 +39,14 @@ if [[ ("$BRANCH" = "refs/heads/release" || "$BRANCH" = "\refs\heads\release") &&
   done
 
   echo "Tagging git commit"
-  git tag -a "build-$BUILD_GROUP_NUMBER" -m "Build $BUILD_GROUP_NUMBER"
+  BUILD_TAG="build-$BUILD_GROUP_NUMBER"
+  NEW_TAG=`git tag | grep $BUILD_TAG`
+  echo $NEW_TAG
+  if [[ "$NEW_TAG" = "build-$BUILD_GROUP_NUMBER" ]]; then
+    git tag -a "build-$BUILD_GROUP_NUMBER" -m "Build $BUILD_GROUP_NUMBER"
+  fi
   git push --tags origin release
+  
 
   echo "Deploying server..."
   echo "  REVIEWABLE_FIREBASE_AUTH: $REVIEWABLE_FIREBASE_AUTH" >>app.yaml

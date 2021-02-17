@@ -11,7 +11,7 @@ env:
   BUILD_NUMBER: ${{ github.run_number }}
   SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
   SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ github.token }}
   REVIEWABLE_HOST_URL: ${{ secrets.REVIEWABLE_HOST_URL }}
   REVIEWABLE_FIREBASE: ${{ secrets.REVIEWABLE_FIREBASE }}
   REVIEWABLE_FIREBASE_PROJECT_ID: ${{ secrets.REVIEWABLE_FIREBASE_PROJECT_ID }}
@@ -45,6 +45,7 @@ jobs:
         with:
           persist-credentials: true
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/cache@v2
         with:
           path: 'node_modules'
