@@ -79,13 +79,6 @@ jobs:
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "::set-output name=BUILD_GROUP_NUMBER::$BUILD_GROUP_NUMBER"
-      - shell: bash
-        run: |
-          mkdir shippable
-          echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
-          cat shippable/notification.json
-        env:
-          BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       - uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -180,10 +173,6 @@ jobs:
               done
             fi
           fi
-      - shell: bash
-        run: 'echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}" >shippable/notification.json'
-        env:
-          BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       - name: Delete release on failure
         if: failure()
         uses: dev-drprasad/delete-tag-and-release@v0.1.3
@@ -196,13 +185,13 @@ jobs:
       - name: Slack - Error
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
-          SLACK_CUSTOM_PAYLOAD: '{"level": "error", "message": "Server [build ${{ env.BUILD_GROUP_NUMBER }}](${{ env.BUILD_URL }}) deployment failed", "text": "Server <${{ env.BUILD_URL }}|build ${{ env.BUILD_GROUP_NUMBER }}> deployment failed"}'
+          SLACK_CUSTOM_PAYLOAD: '{"level": "error", "message": "Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed", "text": "Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed"}'
         if: failure()
         uses: Ilshidur/action-slack@2.0.2
       - name: Slack - Success
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
-          SLACK_CUSTOM_PAYLOAD: '{"level": "info", "message": "Server [build ${{ env.BUILD_GROUP_NUMBER }}](${{ env.BUILD_URL }}) deployed", "text": "Server <${{ env.BUILD_URL }}|build ${{ env.BUILD_GROUP_NUMBER }}> deployed"}'
+          SLACK_CUSTOM_PAYLOAD: '{"level": "info", "message": "Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed", "text": "Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed"}'
         uses: Ilshidur/action-slack@2.0.2
         
 
