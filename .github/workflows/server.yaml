@@ -18,8 +18,10 @@ env:
   SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
   CLOUD_PROJECT: ${{ secrets.CLOUD_PROJECT }}
   LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
+  SLACK_URL: ${{ secrets.SLACK_URL }}
+  GITTER_URL: ${{ secrets.GITTER_URL }}
 jobs:
-  build:
+  CI:
     runs-on: ubuntu-latest
     steps:
       - name: Assign BUILD_GROUP_NUMBER
@@ -37,11 +39,10 @@ jobs:
       - name: Print info
         run: |
           echo "Branch: ${{ env.BRANCH }}; pull request: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}; build: ${{ steps.build_group_number.outputs.BUILD_GROUP_NUMBER }}"
-      # Client build
-      - name: Building and running tests
-        uses: actions/checkout@v2
+
+      - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
       - uses: actions/cache@v2
         with:
           path: 'node_modules'
@@ -49,7 +50,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-          
+      
       - name: Install
         run: npx yarn install --pure-lockfile
       - name: Build
@@ -59,12 +60,6 @@ jobs:
       - name: Test
         run: npm run test
 
-      - name: cleanup
-        run: bash -e ./scripts/cleanup.sh
-      
-      - name: cleanup on failure
-        if: ${{ failure() }}
-        run: bash -e ./scripts/cleanup.sh
     outputs:
       PULL_REQUEST: ${{ steps.setpullrequest.outputs.PULL_REQUEST }}
 
@@ -73,9 +68,10 @@ jobs:
       github.event_name != 'pull_request' &&
       (contains(github.ref, '\\refs\\heads\\release') ||
       contains(github.ref, 'refs/heads/release'))
-    needs: build
+    needs: CI
     runs-on: ubuntu-latest
     steps:
+      - run: echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
         run: |
@@ -174,6 +170,7 @@ jobs:
               done
             fi
           fi
+      - run: echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}" >shippable/notification.json
       - name: Delete release on failure
         if: failure()
         uses: dev-drprasad/delete-tag-and-release@v0.1.3
@@ -183,6 +180,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
+
+  cleanup:
+    if: always()
+    run-on: ubuntu
+    needs: release
+    steps:
+      - name: cleanup
+        run: bash -e ./scripts/cleanup.sh
       
 
 
