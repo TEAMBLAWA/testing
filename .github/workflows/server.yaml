@@ -177,7 +177,7 @@ jobs:
   Failure:
     name: Rollaback release on failure
     needs: release
-    on: ubuntu-latest
+    runs-on: ubuntu-latest
     if: failure()
     steps:
       - name: Delete release on failure
