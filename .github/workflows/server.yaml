@@ -183,7 +183,7 @@ jobs:
 
   cleanup:
     if: always()
-    run-on: ubuntu
+    runs-on: ubuntu-latest
     needs: release
     steps:
       - name: cleanup
