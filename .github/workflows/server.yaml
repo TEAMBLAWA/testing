@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_URL: ${{ secrets.BUILD_URL }}
-      SLACK_WEBHOOK: ${{ env.SLACK_URL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
     steps:
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
