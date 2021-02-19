@@ -71,7 +71,9 @@ jobs:
     needs: CI
     runs-on: ubuntu-latest
     steps:
-      - run: 'echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json'
+      - run: |
+        mkdir shippable
+        echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
         run: |
