@@ -78,6 +78,9 @@ jobs:
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "::set-output name=BUILD_GROUP_NUMBER::$BUILD_GROUP_NUMBER"
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - shell: bash
         run: |
           mkdir shippable
@@ -85,9 +88,6 @@ jobs:
           cat shippable/notification.json
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Cloud Configuration
         id: configurecloud
         run: |
