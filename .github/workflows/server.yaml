@@ -71,7 +71,6 @@ jobs:
     needs: CI
     runs-on: ubuntu-latest
     env:
-      BUILD_URL: ${{ secrets.BUILD_URL }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
     steps:
       - name: Assign BUILD_GROUP_NUMBER
@@ -184,12 +183,14 @@ jobs:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       - name: Slack - Error
         env:
+          BUILD_URL: ${{ secrets.BUILD_URL }}
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
           SLACK_CUSTOM_PAYLOAD: '{"level": "error", "message": "Server [build {{ BUILD_GROUP_NUMBER }}]({{ BUILD_URL }}) deployment failed", "text": "Server <{{ BUILD_URL }}|build {{ BUILD_GROUP_NUMBER }}> deployment failed"}'
         if: failure()
         uses: Ilshidur/action-slack@2.0.2
       - name: Slack - Success
         env:
+          BUILD_URL: ${{ secrets.BUILD_URL }}
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
           SLACK_CUSTOM_PAYLOAD: '{"level": "info", "message": "Server [build {{ BUILD_GROUP_NUMBER }}]({{ BUILD_URL }}) deployed", "text": "Server <{{ BUILD_URL }}|build {{ BUILD_GROUP_NUMBER }}> deployed"}'
         uses: Ilshidur/action-slack@2.0.2
