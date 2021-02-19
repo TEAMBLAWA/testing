@@ -72,15 +72,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_URL: ${{ secrets.BUILD_URL }}
+      SLACK_WEBHOOK: ${{ env.SLACK_URL }}
     steps:
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "::set-output name=BUILD_GROUP_NUMBER::$BUILD_GROUP_NUMBER"
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - shell: bash
         run: |
           mkdir shippable
@@ -88,6 +86,10 @@ jobs:
           cat shippable/notification.json
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: bash -e ./scripts/cleanup.sh
       - name: Cloud Configuration
         id: configurecloud
         run: |
@@ -191,9 +193,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
-      - name: Cleanup
-        if: always()
-        run: bash -e ./scripts/cleanup.sh
+      - name: Slack - Error
+        env:
+          SLACK_CUSTOM_PAYLOAD: '{\"level\": \"error\", \"message\": \"Server [build ${{ env.BUILD_GROUP_NUMBER }}](${{ env.BUILD_URL }}) deployment failed\", \"text\": \"Server <${{ env.BUILD_URL }}|build ${{ BUILD_GROUP_NUMBER }}> deployment failed\"}'
+        if: failure()
+        uses: Ilshidur/action-slack@2.0.2
+      - name: Slack - Success
+        env:
+          SLACK_CUSTOM_PAYLOAD: '{\"level\": \"info\", \"message\": \"Server [build ${{ env.BUILD_GROUP_NUMBER }}](${{ env.BUILD_URL }}) deployed\", \"text\": \"Server <${{ env.BUILD_URL }}|build ${{ env.BUILD_GROUP_NUMBER }}> deployed\"}'
+        uses: Ilshidur/action-slack@2.0.2
+        
+
       
 
 
