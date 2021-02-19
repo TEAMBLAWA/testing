@@ -117,10 +117,10 @@ jobs:
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
 
-      - name: Install dependencies and build
-        uses: actions/setup-node@v2
+      - uses: actions/setup-node@v2
         with:
           node-version: '14'
+      - name: Install dependencies and build
         run: |
           npx yarn install --pure-lockfile
           npm run build
