@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-set -e
+# set -e
 export BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
 
 rm -rf shippable
