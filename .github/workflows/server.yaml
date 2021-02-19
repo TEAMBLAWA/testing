@@ -70,16 +70,21 @@ jobs:
       contains(github.ref, 'refs/heads/release'))
     needs: CI
     runs-on: ubuntu-latest
+    env:
+      BUILD_URL: ${{ secrets.BUILD_URL }}
     steps:
-      - shell: bash
-        run: |
-          mkdir shippable
-          echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "::set-output name=BUILD_GROUP_NUMBER::$BUILD_GROUP_NUMBER"
+      - shell: bash
+        run: |
+          mkdir shippable
+          echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
+          cat shippable/notification.json
+        env:
+          BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       - uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -175,6 +180,8 @@ jobs:
           fi
       - shell: bash
         run: 'echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}" >shippable/notification.json'
+        env:
+          BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       - name: Delete release on failure
         if: failure()
         uses: dev-drprasad/delete-tag-and-release@v0.1.3
