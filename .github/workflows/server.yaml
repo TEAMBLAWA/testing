@@ -49,11 +49,15 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-        run: |
-          npx yarn install --pure-lockfile
-          npm run build
-          npm run lint
-          npm run test
+          
+      - name: Install
+        run: npx yarn install --pure-lockfile
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm run test
 
       - name: cleanup
         run: bash -e ./scripts/cleanup.sh
@@ -120,7 +124,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - name: Install dependencies and build
+      - name: Install and Build
         run: |
           npx yarn install --pure-lockfile
           npm run build
@@ -146,7 +150,7 @@ jobs:
         env:
           BUILD_GROUP_NUMBER: ${{ steps.buildgroupnumber.outputs.BUILD_GROUP_NUMBER }}
       
-      - id: Deploy
+      - name: Deploy
         uses: google-github-actions/deploy-appengine@main
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
