@@ -71,7 +71,8 @@ jobs:
     needs: CI
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - shell: bash
+        run: |
           mkdir shippable
           echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}" >shippable/notification.json
       - name: Assign BUILD_GROUP_NUMBER
@@ -172,7 +173,8 @@ jobs:
               done
             fi
           fi
-      - run: 'echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}" >shippable/notification.json'
+      - shell: bash
+        run: 'echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}" >shippable/notification.json'
       - name: Delete release on failure
         if: failure()
         uses: dev-drprasad/delete-tag-and-release@v0.1.3
