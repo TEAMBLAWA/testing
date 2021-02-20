@@ -187,6 +187,7 @@ jobs:
   on_failure:
     if: failure()
     runs-on: ubuntu-latest
+    needs: [CI, release]
     steps:
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
