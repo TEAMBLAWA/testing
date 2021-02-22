@@ -83,7 +83,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-          - name: Cloud Configuration
+      - name: Cloud Configuration
         id: configurecloud
         run: |
           content=`cat service_account_key.json | base64 | tr -d '\n'`
