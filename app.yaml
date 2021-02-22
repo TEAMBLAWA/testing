@@ -1,35 +1,15 @@
-runtime: custom
-env: flex
+runtime: python27
 api_version: 1
-service: default
+threadsafe: true
 
-resources:
-  cpu: 0.5
-  memory_gb: 1.3
-  disk_size_gb: 10
+handlers:
+- url: /
+  static_files: build/index.html
+  upload: build/index.html
 
-automatic_scaling:
-  min_num_instances: 3
-  max_num_instances: 20
-  cool_down_period_sec: 60
-  cpu_utilization:
-    target_utilization: 0.85
-
-liveness_check:
-  path: /
-  check_interval_sec: 10
-  timeout_sec: 5
-  failure_threshold: 6
-  success_threshold: 1
-  initial_delay_sec: 60
-
-readiness_check:
-  path: /
-  check_interval_sec: 5
-  timeout_sec: 4
-  failure_threshold: 2
-  success_threshold: 2
-  app_start_timeout_sec: 120
+- url: /(.*)
+  static_files: build/\1
+  upload: build/(.*)
 
 env_variables:
   NODE_ENV: production
