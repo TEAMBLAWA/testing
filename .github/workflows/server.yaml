@@ -20,6 +20,7 @@ env:
   LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
   SLACK_URL: ${{ secrets.SLACK_URL }}
   GITTER_URL: ${{ secrets.GITTER_URL }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
 jobs:
   CI:
     runs-on: ubuntu-latest
@@ -70,9 +71,9 @@ jobs:
       (contains(github.ref, '\\refs\\heads\\release') ||
       contains(github.ref, 'refs/heads/release'))
     runs-on: ubuntu-latest
+    needs: CI
     env:
       BUILD_URL: ${{ secrets.BUILD_URL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
     steps:
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
