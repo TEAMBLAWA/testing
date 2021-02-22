@@ -73,7 +73,17 @@ jobs:
     env:
       BUILD_URL: ${{ secrets.BUILD_URL }}
     steps:
-      - name: Cloud Configuration
+      - name: Assign BUILD_GROUP_NUMBER
+        id: buildgroupnumber
+        shell: bash
+        run: |
+          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
+          echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+          - name: Cloud Configuration
         id: configurecloud
         run: |
           content=`cat service_account_key.json | base64 | tr -d '\n'`
@@ -87,15 +97,6 @@ jobs:
           export_default_credentials: true
       - name: Gcloud Info
         run: gcloud info
-      - name: Assign BUILD_GROUP_NUMBER
-        id: buildgroupnumber
-        shell: bash
-        run: |
-          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
-          echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Assign BUILD_URL
         shell: bash
