@@ -20,7 +20,7 @@ env:
   LAST_SHIPPABLE_RUN: 2771
   BRANCH: ${{ github.ref }}
   GITHUB_TOKEN: ${{ github.token }}
-  SLACK_WEBHOOK: ${{ env.SLACK_URL }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
   BUILD_NUMBER: ${{ github.run_number }}
   REVIEWABLE_HOST_URL: https://reviewable.io
   REVIEWABLE_FIREBASE_CREDENTIALS_FILE: service_account_key.json
