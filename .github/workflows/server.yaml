@@ -1,26 +1,32 @@
 name: Build server
 on: [push, pull_request]
 env:
+  SLACK_URL: ${{ secrets.SLACK_URL }} #secret
+  GITTER_URL: ${{ secrets.GITTER_URL }} # secret
+  SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }} # secret
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }} # secret
+  REVIEWABLE_SMTP_URL: ${{ secrets.REVIEWABLE_SMTP_URL }} # secret
+  REVIEWABLE_PING_URL: ${{ secrets.REVIEWABLE_PING_URL }} # secret
+  REVIEWABLE_LOGGLY_TOKEN: ${{ secrets.REVIEWABLE_LOGGLY_TOKEN }} # secret
+  REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }} # secret
+  REVIEWABLE_STRIPE_SECRET_KEY: ${{ secrets.REVIEWABLE_STRIPE_SECRET_KEY }} # secret
+  REVIEWABLE_SERVER_SENTRY_DSN: ${{ secrets.REVIEWABLE_SERVER_SENTRY_DSN }} # secret
+  REVIEWABLE_GITHUB_SECRET_TOKEN: ${{ secrets.REVIEWABLE_GITHUB_SECRET_TOKEN }} # secret
+  REVIEWABLE_FIREBASE_PRIVATE_KEY: ${{ secrets.REVIEWABLE_FIREBASE_PRIVATE_KEY }} # secret
+  REVIEWABLE_GITHUB_CLIENT_SECRET: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_SECRET }} # secret
+  REVIEWABLE_ENCRYPTION_PRIVATE_KEYS: ${{ secrets.REVIEWABLE_ENCRYPTION_PRIVATE_KEYS }} # secret
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # secret
+  SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }} # secret
+  LAST_SHIPPABLE_RUN: 2771
   BRANCH: ${{ github.ref }}
-  BUILD_NUMBER: ${{ github.run_number }}
   GITHUB_TOKEN: ${{ github.token }}
-  REVIEWABLE_HOST_URL: ${{ secrets.REVIEWABLE_HOST_URL }}
-  REVIEWABLE_FIREBASE_CREDENTIALS_FILE: ${{ secrets.REVIEWABLE_FIREBASE_CREDENTIALS_FILE }}
-  REVIEWABLE_FIREBASE: ${{ secrets.REVIEWABLE_FIREBASE }}
-  REVIEWABLE_FIREBASE_PROJECT_ID: ${{ secrets.REVIEWABLE_FIREBASE_PROJECT_ID }}
-  REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyArk9DViC8pswhT_f4afh8ot203TvB46EE
-  REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }}
-  REVIEWABLE_CODE_EXECUTOR: ${{ secrets.REVIEWABLE_CODE_EXECUTOR }}
-  REVIEWABLE_GITHUB_CLIENT_ID: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_ID }}
-  REVIEWABLE_LOGGLY_SUBDOMAIN: ${{ secrets.REVIEWABLE_LOGGLY_SUBDOMAIN }}
-  REVIEWABLE_MIXPANEL_TOKEN: ${{ secrets.REVIEWABLE_MIXPANEL_TOKEN }}
-  REVIEWABLE_SMTP_FROM: ${{ secrets.REVIEWABLE_SMTP_FROM }}
-  REVIEWABLE_SMTP_BCC: ${{ secrets.REVIEWABLE_SMTP_FROM }}
-  SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
-  LAST_SHIPPABLE_RUN: ${{ secrets.LAST_SHIPPABLE_RUN }}
-  SLACK_URL: ${{ secrets.SLACK_URL }}
-  GITTER_URL: ${{ secrets.GITTER_URL }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
+  SLACK_WEBHOOK: ${{ env.SLACK_URL }}
+  BUILD_NUMBER: ${{ github.run_number }}
+  REVIEWABLE_HOST_URL: https://reviewable.io
+  REVIEWABLE_FIREBASE_CREDENTIALS_FILE: service_account_key.json
+  SENTRY_ORG: reviewableio
+  SENTRY_PROJECT_ID: testing
+  SENTRY_PROJECT: reviewableio/reviewableio-server
 jobs:
   CI:
     runs-on: ubuntu-latest
@@ -62,13 +68,6 @@ jobs:
         run: npm run lint
       - name: Test
         run: npm run test
-      
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: buildartifacts
-          path: build
-
 
   release:
     if: |
@@ -120,9 +119,7 @@ jobs:
       - name: Sentry release
         uses: getsentry/action-release@v1
         env:
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_API_KEY }}
+          SENTRY_PROJECT: ${{ env.SENTRY_PROJECT_ID }}
         with:
           sourcemaps: './build/lib ./build' 
           environment: 'production'
