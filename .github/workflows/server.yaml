@@ -66,8 +66,8 @@ jobs:
       - name: Archive production artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: buildandmodules
-          path: "**/*"
+          name: buildartifacts
+          path: build
 
 
   release:
