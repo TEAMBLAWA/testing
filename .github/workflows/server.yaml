@@ -89,7 +89,7 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$(echo "{/"level/": /"info/", /"message/": /"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed/", /"text/": /"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed/"}")
+          NOTIFICATION=$(echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}")
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Cloud Configuration
@@ -224,7 +224,7 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$(echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]( $BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}")
+          NOTIFICATION=$(echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}")
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Delete release on failure
