@@ -215,7 +215,8 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          echo 'NOTIFICATION=$(echo '{"level": "error", "message": "Server [build $BUILD_GROUP_NUMBER]( $BUILD_URL) deployment failed", "text": "Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed"}')' >> $GITHUB_ENV
+          NOTIFICATION=$(echo '{"level": "error", "message": "Server [build $BUILD_GROUP_NUMBER]( $BUILD_URL) deployment failed", "text": "Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed"}')
+          echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Delete release on failure
         uses: dev-drprasad/delete-tag-and-release@v0.1.3
