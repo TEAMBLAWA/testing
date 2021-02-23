@@ -95,7 +95,7 @@ jobs:
       - name: Cloud Configuration
         id: configurecloud
         run: |
-          content=`cat service_account_key.json | base64 | tr -d '\n'`
+          content=$(sed "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json | base64 | tr -d '\n')
           echo "::set-output name=GCP_SA_KEY::$content"
           
       - name: Setup cloud SDK
@@ -200,7 +200,7 @@ jobs:
       - name: Cloud Configuration
         id: configurecloud
         run: |
-          content=`cat service_account_key.json | sed -i "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" |  base64 | tr -d '\n'`
+          content=$(sed "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json | base64 | tr -d '\n')
           echo "::set-output name=GCP_SA_KEY::$content"
 
       - name: Setup cloud SDK
