@@ -62,6 +62,13 @@ jobs:
         run: npm run lint
       - name: Test
         run: npm run test
+      
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: buildandmodules
+          path: "**/*"
+
 
   release:
     if: |
@@ -89,16 +96,16 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$(echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}")
+          NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Cloud Configuration
         id: configurecloud
+        shell: bash
         run: |
-          echo $SERVICE_ACCOUNT_PRIVATE_KEY
           json=$(sed "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json)
-          echo $json
-          content=$(echo $json | base64 | tr -d '\n')
+          # python command is to minify contents contents of service_account_key.json
+          content=$(echo $json | python3 -c 'import json, sys;json.dump(json.load(sys.stdin), sys.stdout)')
           echo "::set-output name=GCP_SA_KEY::$content"
           
       - name: Setup cloud SDK
@@ -191,8 +198,9 @@ jobs:
         uses: fjogeleit/http-request-action@master
         with:
           url: ${{ secrets.GITTER_URL }}
-          data: ${{ env.NOTIFICATION }}
           method: 'POST'
+          data: ${{ env.NOTIFICATION }}
+          timeout: 15000
 
   on_failure:
     if: failure()
@@ -204,10 +212,9 @@ jobs:
         id: configurecloud
         shell: bash
         run: |
-          echo $SERVICE_ACCOUNT_PRIVATE_KEY
           json=$(sed "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json)
-          echo $json
-          content=$(echo $json | base64 | tr -d '\n')
+          # python command is to minify contents contents of service_account_key.json
+          content=$(echo $json | python3 -c 'import json, sys;json.dump(json.load(sys.stdin), sys.stdout)')
           echo "::set-output name=GCP_SA_KEY::$content"
 
       - name: Setup cloud SDK
@@ -232,7 +239,7 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$(echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}")
+          NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Delete release on failure
