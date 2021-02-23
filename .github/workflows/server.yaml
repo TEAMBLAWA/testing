@@ -59,7 +59,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      
+
       - name: Install
         run: npx yarn install --pure-lockfile
       - name: Build
@@ -106,12 +106,12 @@ jobs:
           # python command is to minify contents contents of service_account_key.json
           content=$(echo $json | python3 -c 'import json, sys;json.dump(json.load(sys.stdin), sys.stdout)')
           echo "::set-output name=GCP_SA_KEY::$content"
-          
+
       - name: Setup cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}    
-          service_account_key: ${{ steps.configurecloud.outputs.GCP_SA_KEY }}  
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ steps.configurecloud.outputs.GCP_SA_KEY }}
           export_default_credentials: true
       - name: Gcloud Info
         run: gcloud info
@@ -121,7 +121,7 @@ jobs:
         env:
           SENTRY_PROJECT: ${{ env.SENTRY_PROJECT_ID }}
         with:
-          sourcemaps: './build/lib ./build' 
+          sourcemaps: './build/lib ./build'
           environment: 'production'
           version: ${{ env.BUILD_GROUP_NUMBER }}
           set_commits: skip
@@ -140,7 +140,7 @@ jobs:
         run: |
           npx yarn install --pure-lockfile
           npm run build
-      
+
       - name: Update app.yaml
         shell: bash
         run: |
@@ -159,7 +159,7 @@ jobs:
           echo "  REVIEWABLE_GITHUB_SECRET_TOKEN: $REVIEWABLE_GITHUB_SECRET_TOKEN" >>app.yaml
           echo "  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY" >>app.yaml
           echo "  REVIEWABLE_VERSION: $BUILD_GROUP_NUMBER" >>app.yaml
-      
+
       - name: Deploy
         uses: google-github-actions/deploy-appengine@main
         with:
@@ -185,7 +185,7 @@ jobs:
               done
             fi
           fi
-      
+
       - name: Slack - Success
         uses: Ilshidur/action-slack@2.0.2
         env:
@@ -217,8 +217,8 @@ jobs:
       - name: Setup cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}    
-          service_account_key: ${{ steps.configurecloud.outputs.GCP_SA_KEY }}  
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ steps.configurecloud.outputs.GCP_SA_KEY }}
           export_default_credentials: true
 
       - name: Assign BUILD_GROUP_NUMBER
@@ -263,8 +263,3 @@ jobs:
           url: ${{ secrets.GITTER_URL }}
           data: ${{ env.NOTIFICATION }}
           method: 'POST'
-        
-
-
-
-        
