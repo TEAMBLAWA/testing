@@ -215,7 +215,7 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$(echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]( $BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}")
+          NOTIFICATION=${{ toJSON({"level": "error", "message": "Server [build $BUILD_GROUP_NUMBER]( $BUILD_URL) deployment failed", "text": "Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed"}) }}
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Delete release on failure
