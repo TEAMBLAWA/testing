@@ -89,7 +89,7 @@ jobs:
       - name: Assign NOTIFICATION
         shell: bash
         run: |
-          NOTIFICATION=$("{/"level/": /"info/", /"message/": /"Server [build {{ BUILD_GROUP_NUMBER }}]({{ BUILD_URL }}) deployed/", /"text/": /"Server <{{ BUILD_URL }}|build {{ BUILD_GROUP_NUMBER }}> deployed/"}")
+          NOTIFICATION=$(echo "{/"level/": /"info/", /"message/": /"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed/", /"text/": /"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed/"}")
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Cloud Configuration
