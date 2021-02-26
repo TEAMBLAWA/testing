@@ -1,5 +1,10 @@
 name: Build server
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - release
 env:
   SLACK_URL: ${{ secrets.SLACK_URL }} #secret
   GITTER_URL: ${{ secrets.GITTER_URL }} # secret
@@ -74,8 +79,6 @@ jobs:
         run: yarn lint
       - name: Test
         run: yarn test
-
-      - run: cat /etc/hosts
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v2
