@@ -51,12 +51,20 @@ jobs:
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
           echo "PULL_REQUEST=$PULL_REQUEST" >> $GITHUB_ENV
 
+      # - name: Setup cloud SDK
+      #   uses: google-github-actions/setup-gcloud@master
+      #   with:
+      #     project_id: ${{ secrets.GCP_PROJECT_ID }}
+      #     service_account_key: ${{ env.SERVICE_ACCOUNT_PRIVATE_KEY }}
+      #     export_default_credentials: true
+
+      # - uses: ./.github/actions/appengine-remove
+      #   with:
+      #     limit: 5
       # REMOVE ME: when debugging is completed
       - name: Print info
         run: |
           echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
-        env:
-          BRANCH: ${{ github.ref }}
 
       - uses: actions/checkout@v2
         with:
@@ -166,24 +174,24 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           deliverables: app.yaml
           version: ${{ env.BUILD_GROUP_NUMBER }}
-      - name: Deleting obsolete versions
-        run: |
-          echo "App deployed, looking for obsolete versions to delete..."
-          # Keep the previous version around for rollbacks
-          limit=$(gcloud app versions list --filter='traffic_split=0' --format='value(id)' | wc -l)
-          echo "Found $limit older versions"
-          let "limit-=5" || true
-          echo "Need to delete $limit of them"
-          if [ $limit -gt 0 ]; then
-            versions=$(gcloud app versions list --filter='traffic_split=0' --format='value(id)' --sort-by='last_deployed_time' --limit $limit)
-            if [ ! -z "$versions" ]; then
-              echo "Deleting obsolete versions: $versions"
-              until gcloud app versions delete $versions --quiet
-              do
-                sleep 10  # Give the old version(s) a bit of time to drop their traffic, so we can delete them.
-              done
-            fi
-          fi
+        # - name: Deleting obsolete versions
+        #   run: |
+        #     echo "App deployed, looking for obsolete versions to delete..."
+        #     # Keep the previous version around for rollbacks
+        #     limit=$(gcloud app versions list --filter='traffic_split=0' --format='value(id)' | wc -l)
+        #     echo "Found $limit older versions"
+        #     let "limit-=5" || true
+        #     echo "Need to delete $limit of them"
+        #     if [ $limit -gt 0 ]; then
+        #       versions=$(gcloud app versions list --filter='traffic_split=0' --format='value(id)' --sort-by='last_deployed_time' --limit $limit)
+        #       if [ ! -z "$versions" ]; then
+        #         echo "Deleting obsolete versions: $versions"
+        #         until gcloud app versions delete $versions --quiet
+        #         do
+        #           sleep 10  # Give the old version(s) a bit of time to drop their traffic, so we can delete them.
+        #         done
+        #       fi
+        #     fi
 
       - name: Slack - Success
         uses: Ilshidur/action-slack@2.0.2
