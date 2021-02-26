@@ -25,11 +25,8 @@ env:
   REVIEWABLE_HOST_URL: https://reviewable.io
   REVIEWABLE_FIREBASE_CREDENTIALS_FILE: service_account_key.json
   SENTRY_ORG: reviewableio
-  SENTRY_PROJECT_ID: reviewableio-server
+  SENTRY_PROJECT_ID: testing
   SENTRY_PROJECT: reviewableio/reviewableio-server
-defaults:
-  run:
-    shell: bash
 jobs:
   CI:
     runs-on: ubuntu-latest
@@ -37,7 +34,7 @@ jobs:
       - name: Assign BUILD_GROUP_NUMBER
         id: build_group_number
         run: |
-          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN))
+          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
       - name: Assign PULL_REQUEST
         id: setpullrequest
@@ -45,11 +42,11 @@ jobs:
           PULL_REQUEST=$(cat $GITHUB_EVENT_PATH | jq -r ".pull_request.number")
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
           echo "PULL_REQUEST=$PULL_REQUEST" >> $GITHUB_ENV
+
       - name: Print info
+        shell: bash
         run: |
           echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
-        env:
-          BRANCH: ${{ github.ref }}
 
       - uses: actions/checkout@v2
         with:
@@ -62,23 +59,28 @@ jobs:
         with:
           node-version: '14'
 
-      - name: Install
+      - run: npx yarn global add grunt-cli bower firebase-tools@5.x
+
+      - name: Install root package dependencies
         run: npx yarn install --pure-lockfile
+
+      - name: Install root bower dependencies
+        run: bower install --allow-root --force-latest
+
+      - name: Install diff_worker bower dependencies
+        run: |
+          cd diff_worker
+          bower install --allow-root --force-latest
+          cd ..
+
+      - name: Install truss_worker bower dependencies
+        run: |
+          cd truss_worker
+          bower install --allow-root --force-latest
+          cd ..
+
       - name: Build
-        run: npm run build
-      - name: Lint
-        run: npm run lint
-      - name: Test
-        run: npm run test
-
-      - run: cat /etc/hosts
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: build
-          path: build
-          retention-days: 1
+        run: NODE_ENV=production grunt dist
 
   release:
     if: |
@@ -90,6 +92,7 @@ jobs:
     steps:
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
+        shell: bash
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
@@ -97,16 +100,13 @@ jobs:
         with:
           token: ${{ env.GITHUB_TOKEN }}
 
-      - uses: actions/download-artifact@v2
-        with:
-          name: build
-          path: build
-
       - name: Assign BUILD_URL
+        shell: bash
         run: |
           echo "BUILD_URL=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
       - name: Assign NOTIFICATION
+        shell: bash
         run: |
           NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
@@ -117,6 +117,8 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ env.SERVICE_ACCOUNT_PRIVATE_KEY }}
           export_default_credentials: true
+      - name: Gcloud Info
+        run: gcloud info
 
       - name: Sentry release
         uses: getsentry/action-release@v1
@@ -135,10 +137,18 @@ jobs:
           tag: "build-${{ env.BUILD_GROUP_NUMBER }}"
           token: ${{ env.GITHUB_TOKEN }}
 
-      - name: Update app.yaml
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Install and Build
         run: |
-          # install Python3-distutils as a requirement when deploying
-          # sudo apt-get update -qq && sudo apt-get install python3-distutils -qq
+          npx yarn install --pure-lockfile
+          npm run build
+
+      - name: Update app.yaml
+        shell: bash
+        run: |
+          sudo apt-get update -qq && sudo apt-get install python3-distutils -qq
           echo "Deploying server..."
           echo "  REVIEWABLE_FIREBASE_AUTH: $REVIEWABLE_FIREBASE_AUTH" >>app.yaml
           echo "  REVIEWABLE_FIREBASE_PRIVATE_KEY: $REVIEWABLE_FIREBASE_PRIVATE_KEY" >>app.yaml
@@ -161,6 +171,7 @@ jobs:
           deliverables: app.yaml
           version: ${{ env.BUILD_GROUP_NUMBER }}
       - name: Deleting obsolete versions
+        shell: bash
         run: |
           echo "App deployed, looking for obsolete versions to delete..."
           # Keep the previous version around for rollbacks
@@ -198,25 +209,36 @@ jobs:
     needs: [CI, release]
     steps:
       - uses: actions/checkout@v2
+      - name: Cloud Configuration
+        id: configurecloud
+        shell: bash
+        run: |
+          json=$(sed "s|SERVICE_ACCOUNT_PRIVATE_KEY|$(echo $SERVICE_ACCOUNT_PRIVATE_KEY | sed -e 's/\\/\\\\/g')|" service_account_key.json)
+          # python command is to minify contents contents of service_account_key.json
+          content=$(echo $json | python3 -c 'import json, sys;json.dump(json.load(sys.stdin), sys.stdout)')
+          echo "::set-output name=GCP_SA_KEY::$content"
 
       - name: Setup cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ env.SERVICE_ACCOUNT_PRIVATE_KEY }}
+          service_account_key: ${{ steps.configurecloud.outputs.GCP_SA_KEY }}
           export_default_credentials: true
 
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
+        shell: bash
         run: |
           BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
 
       - name: Assign BUILD_URL
+        shell: bash
         run: |
           echo "BUILD_URL=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
       - name: Assign NOTIFICATION
+        shell: bash
         run: |
           NOTIFICATION=`echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
@@ -245,8 +267,3 @@ jobs:
           url: ${{ secrets.GITTER_URL }}
           data: ${{ env.NOTIFICATION }}
           method: 'POST'
-
-
-
-
-
