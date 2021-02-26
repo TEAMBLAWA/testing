@@ -17,7 +17,7 @@ env:
   REVIEWABLE_ENCRYPTION_PRIVATE_KEYS: ${{ secrets.REVIEWABLE_ENCRYPTION_PRIVATE_KEYS }} # secret
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # secret
   SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }} # secret
-  LAST_SHIPPABLE_RUN: 2771
+  LAST_SHIPPABLE_RUN: 2871
   BRANCH: ${{ github.ref }}
   GITHUB_TOKEN: ${{ github.token }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
@@ -45,6 +45,8 @@ jobs:
           PULL_REQUEST=$(cat $GITHUB_EVENT_PATH | jq -r ".pull_request.number")
           if [[ "$PULL_REQUEST" = "null" ]]; then PULL_REQUEST="false"; fi
           echo "PULL_REQUEST=$PULL_REQUEST" >> $GITHUB_ENV
+
+      # REMOVE ME: when debugging is completed
       - name: Print info
         run: |
           echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
@@ -60,16 +62,18 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('yarn.lock') }}
       - uses: actions/setup-node@v2
         with:
-          node-version: '14'
+          node-version: '14.x'
+      - name: Install yarn
+        run: npm i -g yarn
 
-      - name: Install
-        run: npx yarn install --pure-lockfile
+      - name: Install packages
+        run: yarn install --pure-lockfile
       - name: Build
-        run: npm run build
+        run: yarn build
       - name: Lint
-        run: npm run lint
+        run: yarn lint
       - name: Test
-        run: npm run test
+        run: yarn test
 
       - run: cat /etc/hosts
 
@@ -81,6 +85,7 @@ jobs:
           retention-days: 1
 
   release:
+    # Bug in `act` tool causes git refs to assign with \\ as separators in windows environments
     if: |
       github.event_name != 'pull_request' &&
       (contains(github.ref, '\\refs\\heads\\release') ||
@@ -123,7 +128,7 @@ jobs:
         env:
           SENTRY_PROJECT: ${{ env.SENTRY_PROJECT_ID }}
         with:
-          sourcemaps: './build/lib ./build'
+          sourcemaps: './built/lib ./built ./built/github'
           environment: 'production'
           version: ${{ env.BUILD_GROUP_NUMBER }}
           set_commits: skip
@@ -137,8 +142,6 @@ jobs:
 
       - name: Update app.yaml
         run: |
-          # install Python3-distutils as a requirement when deploying
-          # sudo apt-get update -qq && sudo apt-get install python3-distutils -qq
           echo "Deploying server..."
           echo "  REVIEWABLE_FIREBASE_AUTH: $REVIEWABLE_FIREBASE_AUTH" >>app.yaml
           echo "  REVIEWABLE_FIREBASE_PRIVATE_KEY: $REVIEWABLE_FIREBASE_PRIVATE_KEY" >>app.yaml
@@ -198,13 +201,6 @@ jobs:
     needs: [CI, release]
     steps:
       - uses: actions/checkout@v2
-
-      - name: Setup cloud SDK
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ env.SERVICE_ACCOUNT_PRIVATE_KEY }}
-          export_default_credentials: true
 
       - name: Assign BUILD_GROUP_NUMBER
         id: buildgroupnumber
