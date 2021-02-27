@@ -1062,7 +1062,7 @@ function run() {
         try {
             // Get action inputs.
             let projectId = core.getInput('project_id');
-            const limit = core.getInput('limit');
+            const limit = Number(core.getInput('limit'));
             const serviceAccountKey = core.getInput('credentials');
             // Install gcloud if not already installed.
             if (!setupGcloud.isInstalled()) {
@@ -1092,26 +1092,20 @@ function run() {
                 'app',
                 'versions',
                 'list',
-                '--filter', 'traffic_split=0',
-                '--format', 'value(id)',
-                '--sort-by', 'last_deployed_time',
+                '--filter',
+                'traffic_split=0',
+                '--format',
+                'value(id)',
+                '--sort-by',
+                'last_deployed_time',
             ];
-            let versions = [];
+            const versions = [];
             const stdout = (data) => {
-                versions.push(data.toString().replace(/\r?\n|\r/g, ' '));
+                versions.push(...data
+                    .toString()
+                    .split(/\r?\n|\r/g)
+                    .filter((version) => version));
             };
-            // Create app engine gcloud cmd.
-            const appDeployCmd = [
-                'app',
-                'versions',
-                'delete',
-                `${versions.join(' ')}`,
-                '--quiet',
-            ];
-            // Add gcloud flags.
-            if (projectId !== '') {
-                appDeployCmd.push('--project', projectId);
-            }
             // Get output of gcloud cmd.
             let err = '';
             const stderr = (data) => {
@@ -1123,24 +1117,35 @@ function run() {
                     stdout,
                 },
             };
+            // Add gcloud flags.
+            if (projectId !== '') {
+                appVersionCmd.push('--project', projectId);
+            }
             // Run gcloud versions list cmd
             yield exec.exec(toolCommand, appVersionCmd, options);
-            console.log('versions', versions);
-            // // Run gcloud cmd.
-            // await exec.exec(toolCommand, appDeployCmd, options);
-            // Set url as output.
-            // const urlMatch = output.match(
-            //   /https:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.com/,
-            // );
-            // if (urlMatch) {
-            //   const url = urlMatch[0];
-            //   core.setOutput('url', url);
-            // } else {
-            //   core.info(
-            //     'Can not find URL, defaulting to https://PROJECT_ID.appspot.com',
-            //   );
-            //   core.setOutput('url', `https://${projectId}.appspot.com`);
-            // }
+            const versionsToDelete = versions.slice(0, versions.length - limit);
+            if (versionsToDelete.length) {
+                const appDeleteCmd = [
+                    'app',
+                    'versions',
+                    'delete',
+                    ...versionsToDelete,
+                    '--quiet',
+                ];
+                // Add gcloud flags.
+                if (projectId !== '') {
+                    appDeleteCmd.push('--project', projectId);
+                }
+                core.debug(`Deleting ${versionsToDelete.length}, versions: Version ${versionsToDelete.join(' ')}`);
+                // // Run gcloud cmd.
+                yield exec.exec(toolCommand, appDeleteCmd, options);
+            }
+            else {
+                core.debug('No versions to delete.');
+            }
+            core.debug(err);
+            core.setOutput('versions_deleted', versionsToDelete.join(' '));
+            core.setOutput('total_deleted', versionsToDelete.length);
         }
         catch (error) {
             core.setFailed(error.message);

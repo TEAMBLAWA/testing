@@ -20,8 +20,11 @@ inputs:
     required: false
 
 output:
-  deleted:
-    description: Number of apps deleted.
+  versions_deleted:
+    description: Version numbers that were deleted.
+
+  total_deleted:
+    description: Number of versions deleted.
 
 runs:
   using: node12
