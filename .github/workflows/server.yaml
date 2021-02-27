@@ -165,7 +165,8 @@ jobs:
           deliverables: app.yaml
           version: ${{ env.BUILD_GROUP_NUMBER }}
 
-      - uses: ./.github/actions/appengine-remove
+      - name: Deleting obsolete versions
+        uses: ./.github/actions/appengine-remove
         with:
           limit: 5
 
