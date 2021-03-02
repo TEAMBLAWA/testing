@@ -166,7 +166,7 @@ jobs:
           version: ${{ env.BUILD_GROUP_NUMBER }}
 
       - name: Deleting obsolete versions
-        uses: Reviewable/appengine-remove-action@master
+        uses: Reviewable/appengine-remove-action@v2
         with:
           limit: 5
 
