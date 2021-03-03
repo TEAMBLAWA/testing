@@ -1,0 +1,9 @@
+scripts
+shippable
+.*
+Dockerfile
+shippable.yml
+*.log
+CODEOWNERS
+README.md
+tsconfig.json

@@ -1,0 +1,20 @@
+{
+  "name": "diff_worker",
+  "homepage": "https://github.com/TEAMBLAWA/testing",
+  "authors": [
+    "Anthony Kawa <anthonyk2020@gmail.com>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}
