@@ -105,7 +105,7 @@ jobs:
 
 
       - name: Setup cloud SDK
-        if: $SHOULD_RELEASE == 'true'
+        if: env.SHOULD_RELEASE == 'true'
         uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
