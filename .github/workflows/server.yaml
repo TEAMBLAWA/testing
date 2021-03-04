@@ -53,7 +53,6 @@ jobs:
           else
             SHOULD_RELEASE=false;
           fi
-          echo $SHOULD_RELEASE
           echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> $GITHUB_ENV
 
       - name: Assign BUILD_GROUP_NUMBER
