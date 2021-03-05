@@ -26,3 +26,5 @@ yarn-error.log*
 truss_worker/bower_components
 diff_worker/bower_components
 bower_components
+
+.firebase
