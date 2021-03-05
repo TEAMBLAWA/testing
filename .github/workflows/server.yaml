@@ -1,6 +1,9 @@
 name: Build server
 on:
   pull_request:
+    branches-ignore:
+      - release
+      - main
   push:
     branches:
       - release
