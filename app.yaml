@@ -1,0 +1,33 @@
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /
+  static_files: build/index.html
+  upload: build/index.html
+
+- url: /(.*)
+  static_files: build/\1
+  upload: build/(.*)
+
+env_variables:
+  NODE_ENV: production
+  REVIEWABLE_HOST_URL: https://reviewable.io
+  REVIEWABLE_FIREBASE: reviewable
+  REVIEWABLE_FIREBASE_PROJECT_ID: firebase-reviewable
+  REVIEWABLE_FIREBASE_CLIENT_EMAIL: firebase-adminsdk-cicky@firebase-reviewable.iam.gserviceaccount.com
+  REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyDv2EitKktEvCxDdBzDvepaFcsublGUGRI
+  REVIEWABLE_CODE_EXECUTOR: awslambda
+  REVIEWABLE_GITHUB_CLIENT_ID: 7da38b6fb966259af6d5
+  REVIEWABLE_LOGGLY_SUBDOMAIN: reviewable
+  REVIEWABLE_MIXPANEL_TOKEN: 47d8b419a2152fa04c255781d51c209e
+  REVIEWABLE_SMTP_FROM: Reviewable <support@reviewable.io>
+  REVIEWABLE_SMTP_BCC: archive@reviewable.io
+  REVIEWABLE_UPLOADS_PROVIDER: s3
+  AWS_ACCESS_KEY_ID: AKIAJJQLXZ7HMEEN72KQ
+  AWS_REGION: us-west-2
+  # AWS_REGION_LAMBDA: us-east-1
+  REVIEWABLE_S3_BUCKET: files.reviewableusercontent.io
+  REVIEWABLE_UPLOADED_FILES_URL: https://files.reviewableusercontent.io
+  # Shippable will automatically append more env variables here, so keep this section at the end!
