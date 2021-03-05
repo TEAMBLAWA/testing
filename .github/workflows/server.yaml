@@ -1,13 +1,11 @@
 name: Build server
 on:
   pull_request:
-    branches-ignore:
-      - release
+    branches:
       - main
   push:
     branches:
       - release
-      - main
 env:
   SLACK_URL: ${{ secrets.SLACK_URL }}
   GITTER_URL: ${{ secrets.GITTER_URL }}
