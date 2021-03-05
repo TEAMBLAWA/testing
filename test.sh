@@ -1,13 +1,8 @@
-#!/usr/bin/bash
-if [[ $BRANCH =~ .*release$ ]]; then
-        BUILD_TARGET='production'
-        FIREBASE_PROJECT='firebase-reviewable'
-elif [[ .*release-beta$ ]]; then
-        BUILD_TARGET='beta'
-        FIREBASE_PROJECT='reviewable-beta'
+if [[ $GITHUB_EVENT_NAME != 'pull_request' &&
+($GITHUB_REF == 'refs/heads/release'||
+$GITHUB_REF == '\\refs\\heads\\release') ]]; then
+  SHOULD_RELEASE=true;
 else
-    echo "Unrecognized release branch: $BRANCH"
-    exit 1
+  SHOULD_RELEASE=false;
 fi
-echo $BUILD_TARGET
-echo $FIREBASE_PROJECT
+echo "SHOULD_RELEASE: $SHOULD_RELEASE"

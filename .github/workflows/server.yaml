@@ -47,13 +47,14 @@ jobs:
       # Bug in `act` tool causes git refs to assign with \\ as separators in windows environments
       - name: Assign SHOULD_RELEASE
         run: |
-          if ${{ github.event_name }} != 'pull_request' &&
-            (${{ contains(github.ref, '\\refs\\heads\\release') }} ||
-            ${{ contains(github.ref, 'refs/heads/release') }}); then
+          if [[ ${{ github.event_name }} != 'pull_request' &&
+            ($GITHUB_REF == '\\refs\\heads\\release' ||
+            $GITHUB_REF == 'refs/heads/release') ]]; then
             SHOULD_RELEASE=true;
           else
             SHOULD_RELEASE=false;
           fi
+          echo $GITHUB_REF
           echo "SHOULD_RELEASE: $SHOULD_RELEASE"
           echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> $GITHUB_ENV
 
