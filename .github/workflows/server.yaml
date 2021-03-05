@@ -47,8 +47,8 @@ jobs:
       - name: Assign SHOULD_RELEASE
         run: |
           if [[ ${{ github.event_name }} != "pull_request" &&
-            ($GITHUB_REF == "\\refs\\heads\\release" ||
-            $GITHUB_REF == "refs/heads/release") ]]; then
+            (${{ contains(github.ref, '\\refs\\heads\\release') }} ||
+            ${{ contains(github.ref, "refs/heads/release") }}) ]]; then
             SHOULD_RELEASE=true;
           else
             SHOULD_RELEASE=false;
