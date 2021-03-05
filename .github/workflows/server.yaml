@@ -48,7 +48,7 @@ jobs:
         run: |
           if [[ ${{ github.event_name }} != "pull_request" &&
             (${{ contains(github.ref, '\\refs\\heads\\release') }} ||
-            ${{ contains(github.ref, "refs/heads/release") }}) ]]; then
+            ${{ contains(github.ref, 'refs/heads/release') }}) ]]; then
             SHOULD_RELEASE=true;
           else
             SHOULD_RELEASE=false;
