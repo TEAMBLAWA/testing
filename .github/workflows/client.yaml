@@ -1,15 +1,10 @@
 name: Build server
-on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - release
+on: [push, pull_request]
 env:
   SLACK_URL: ${{ secrets.SLACK_URL }}
   GITTER_URL: ${{ secrets.GITTER_URL }}
   SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
+  FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
   REVIEWABLE_SMTP_URL: ${{ secrets.REVIEWABLE_SMTP_URL }}
   REVIEWABLE_PING_URL: ${{ secrets.REVIEWABLE_PING_URL }}
@@ -23,19 +18,26 @@ env:
   REVIEWABLE_ENCRYPTION_PRIVATE_KEYS: ${{ secrets.REVIEWABLE_ENCRYPTION_PRIVATE_KEYS }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
-  LAST_SHIPPABLE_RUN: 2871
+  LAST_SHIPPABLE_RUN: 4638
   BRANCH: ${{ github.ref }}
   GITHUB_TOKEN: ${{ github.token }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_URL }}
   BUILD_NUMBER: ${{ github.run_number }}
+  REVIEWABLE_FIREBASE: reviewable
+  REVIEWABLE_FIREBASE_WEB_API_KEY: AIzaSyDv2EitKktEvCxDdBzDvepaFcsublGUGRI
+  REVIEWABLE_FIREBASE_PROJECT_ID: firebase-reviewable
   REVIEWABLE_HOST_URL: https://reviewable.io
-  REVIEWABLE_FIREBASE_CREDENTIALS_FILE: service_account_key.json
+  REVIEWABLE_GITHUB_URL: https://github.com
+  REVIEWABLE_GITHUB_CLIENT_ID: 7da38b6fb966259af6d5
+  REVIEWABLE_MIXPANEL_TOKEN: 47d8b419a2152fa04c255781d51c209e
+  REVIEWABLE_HEADWAY_ACCOUNT: qJAvVy
+  REVIEWABLE_STRIPE_PUBLISHABLE_KEY: pk_live_ih0FgRCAkYNrayIOV2vitb60
+  REVIEWABLE_TERMS_URL: https://github.com/Reviewable/Reviewable/blob/master/legal/terms.md
+  REVIEWABLE_PRIVACY_URL: https://github.com/Reviewable/Reviewable/blob/master/legal/privacy.md
+  REVIEWABLE_CLIENT_SENTRY_DSN: https://1a7d50a470574294937db62e304cabbb@sentry.io/124660
   SENTRY_ORG: reviewableio
-  SENTRY_PROJECT_ID: reviewableio-server
-  SENTRY_PROJECT: reviewableio/reviewableio-server
-defaults:
-  run:
-    shell: bash
+  SENTRY_PROJECT_ID: testing
+  SENTRY_PROJECT: reviewableio/testing
 jobs:
   Build:
     runs-on: ubuntu-latest
@@ -44,25 +46,26 @@ jobs:
       ##           on build             ##
       ####################################
 
+      # IMPORANT: USE DOUBLEQUOTES (") WITHIN RUN BLOCKS
+
       # Bug in `act` tool causes git refs to assign with \\ as separators in windows environments
+      # Bug: single quotes do not get intepreted correctly in if statements
       - name: Assign SHOULD_RELEASE
         run: |
           if [[ ${{ github.event_name }} != "pull_request" &&
-            (${{ contains(github.ref, '\\refs\\heads\\release') }} ||
-            ${{ contains(github.ref, 'refs/heads/release') }}) ]]; then
+            ($GITHUB_REF == "\\refs\\heads\\release" ||
+            $GITHUB_REF == "refs/heads/release") ]]; then
             SHOULD_RELEASE=true;
           else
             SHOULD_RELEASE=false;
           fi
-          echo ${{ github.event_name }}
-          echo $GITHUB_REF
-          echo "SHOULD_RELEASE: $SHOULD_RELEASE"
+          echo $SHOULD_RELEASE
           echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> $GITHUB_ENV
 
       - name: Assign BUILD_GROUP_NUMBER
         id: build_group_number
         run: |
-          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN))
+          BUILD_GROUP_NUMBER=$(echo $(expr $BUILD_NUMBER + $LAST_SHIPPABLE_RUN) | sed 's/\..*//')
           echo "BUILD_GROUP_NUMBER=$BUILD_GROUP_NUMBER" >> $GITHUB_ENV
       - name: Assign PULL_REQUEST
         id: setpullrequest
@@ -73,6 +76,7 @@ jobs:
 
       # REMOVE ME: when debugging is completed
       - name: Print info
+        shell: bash
         run: |
           echo "Branch: $BRANCH; pull request: $PULL_REQUEST; build: $BUILD_GROUP_NUMBER"
 
@@ -85,35 +89,51 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('yarn.lock') }}
       - uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
-      - name: Install yarn
-        run: npm i -g yarn
+          node-version: '14'
 
-      - name: Install packages
+      - run: npm i -g yarn grunt-cli bower firebase-tools@5.x
+      - name: Install root package dependencies
         run: yarn install --pure-lockfile
+      - name: Install root bower dependencies
+        run: bower install --allow-root --force-latest
+      - name: Install diff_worker bower dependencies
+        run: |
+          cd diff_worker
+          bower install --allow-root --force-latest
+          cd ..
+      - name: Install truss_worker bower dependencies
+        run: |
+          cd truss_worker
+          bower install --allow-root --force-latest
+          cd ..
       - name: Build
-        run: yarn build
-      - name: Lint
-        run: yarn lint
-      - name: Test
-        run: yarn test
+        run: NODE_ENV=production grunt dist
 
       ####################################
       ##          on release            ##
       ####################################
+      - name: Release version
+        if: env.SHOULD_RELEASE == 'true'
+        run: |
+          if [[ $BRANCH =~ .*release$ ]]; then
+            BUILD_TARGET='production'
+            # FIREBASE_PROJECT='firebase-reviewable'
+            FIREBASE_PROJECT='reviewable-dev-anthony-fd713'
+          elif [[ .*release-beta$ ]]; then
+            BUILD_TARGET='beta'
+            # FIREBASE_PROJECT='reviewable-beta'
+            FIREBASE_PROJECT='reviewable-dev-anthony-fd713'
+          else
+            echo "Unrecognized release branch: $BRANCH"
+            exit 1
+          fi
+          echo "BUILD_TARGET=$BUILD_TARGET" >> $GITHUB_ENV
+          echo "FIREBASE_PROJECT=$FIREBASE_PROJECT" >> $GITHUB_ENV
+
       - name: Assign BUILD_URL
         if: env.SHOULD_RELEASE == 'true'
         run: |
           echo "BUILD_URL=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
-
-
-      - name: Setup cloud SDK
-        if: env.SHOULD_RELEASE == 'true'
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ env.SERVICE_ACCOUNT_PRIVATE_KEY }}
-          export_default_credentials: true
 
       - name: Sentry release
         if: env.SHOULD_RELEASE == 'true'
@@ -121,12 +141,12 @@ jobs:
         env:
           SENTRY_PROJECT: ${{ env.SENTRY_PROJECT_ID }}
         with:
-          sourcemaps: './built/lib ./built ./built/github'
+          sourcemaps: 'dist/static/js'
           environment: 'production'
           version: ${{ env.BUILD_GROUP_NUMBER }}
           set_commits: skip
 
-      - name: Create release
+      - name: Github release
         if: env.SHOULD_RELEASE == 'true'
         uses: ncipollo/release-action@v1
         with:
@@ -134,48 +154,22 @@ jobs:
           tag: "build-${{ env.BUILD_GROUP_NUMBER }}"
           token: ${{ env.GITHUB_TOKEN }}
 
-      - name: Update app.yaml
+      - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
         run: |
-          echo "Deploying server..."
-          echo "  REVIEWABLE_FIREBASE_AUTH: $REVIEWABLE_FIREBASE_AUTH" >>app.yaml
-          echo "  REVIEWABLE_FIREBASE_PRIVATE_KEY: $REVIEWABLE_FIREBASE_PRIVATE_KEY" >>app.yaml
-          echo "  REVIEWABLE_ENCRYPTION_PRIVATE_KEYS: $REVIEWABLE_ENCRYPTION_PRIVATE_KEYS" >>app.yaml
-          echo "  REVIEWABLE_FIREBASE_CREDENTIALS_FILE: $REVIEWABLE_FIREBASE_CREDENTIALS_FILE" >>app.yaml
-          echo "  REVIEWABLE_SMTP_URL: $REVIEWABLE_SMTP_URL" >>app.yaml
-          echo "  REVIEWABLE_SERVER_SENTRY_DSN: $REVIEWABLE_SERVER_SENTRY_DSN" >>app.yaml
-          echo "  REVIEWABLE_PING_URL: $REVIEWABLE_PING_URL" >>app.yaml
-          echo "  REVIEWABLE_STRIPE_SECRET_KEY: $REVIEWABLE_STRIPE_SECRET_KEY" >>app.yaml
-          echo "  REVIEWABLE_LOGGLY_TOKEN: $REVIEWABLE_LOGGLY_TOKEN" >>app.yaml
-          echo "  REVIEWABLE_GITHUB_CLIENT_SECRET: $REVIEWABLE_GITHUB_CLIENT_SECRET" >>app.yaml
-          echo "  REVIEWABLE_GITHUB_SECRET_TOKEN: $REVIEWABLE_GITHUB_SECRET_TOKEN" >>app.yaml
-          echo "  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY" >>app.yaml
-          echo "  REVIEWABLE_VERSION: $BUILD_GROUP_NUMBER" >>app.yaml
-
-      - name: Deploy
-        if: env.SHOULD_RELEASE == 'true'
-        uses: google-github-actions/deploy-appengine@main
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          deliverables: app.yaml
-          version: ${{ env.BUILD_GROUP_NUMBER }}
-
-      - name: Deleting obsolete versions
-        if: env.SHOULD_RELEASE == 'true'
-        uses: Reviewable/appengine-remove-action@v2
-        with:
-          limit: 5
+          echo "Deploying client to $BUILD_TARGET..."
+          firebase deploy --non-interactive --token "$FIREBASE_DEPLOY_TOKEN" --project "$FIREBASE_PROJECT" --public build --only hosting,database --message "Build $BUILD_GROUP_NUMBER"
 
       - name: Assign NOTIFICATION
         if: env.SHOULD_RELEASE == 'true'
         run: |
-          NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
+          NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Client <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Assign NOTIFICATION on failure
         if: env.SHOULD_RELEASE == 'true' && failure()
         run: |
-          NOTIFICATION=`echo "{\"level\": \"error\", \"message\": \"Server [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Server <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}"`
+          NOTIFICATION=`echo "{\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Client <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}"`
           echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
 
       - name: Slack Notification
@@ -202,8 +196,3 @@ jobs:
         with:
           delete_release: true
           tag_name: "build-${{ env.BUILD_GROUP_NUMBER }}" # tag name to delete
-
-
-
-
-
