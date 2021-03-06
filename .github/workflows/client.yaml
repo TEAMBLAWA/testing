@@ -12,19 +12,6 @@ env:
   GITTER_URL: ${{ secrets.GITTER_URL }}
   SENTRY_API_KEY: ${{ secrets.SENTRY_API_KEY }}
   FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
-  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-  REVIEWABLE_SMTP_URL: ${{ secrets.REVIEWABLE_SMTP_URL }}
-  REVIEWABLE_PING_URL: ${{ secrets.REVIEWABLE_PING_URL }}
-  REVIEWABLE_LOGGLY_TOKEN: ${{ secrets.REVIEWABLE_LOGGLY_TOKEN }}
-  REVIEWABLE_FIREBASE_AUTH: ${{ secrets.REVIEWABLE_FIREBASE_AUTH }}
-  REVIEWABLE_STRIPE_SECRET_KEY: ${{ secrets.REVIEWABLE_STRIPE_SECRET_KEY }}
-  REVIEWABLE_SERVER_SENTRY_DSN: ${{ secrets.REVIEWABLE_SERVER_SENTRY_DSN }}
-  REVIEWABLE_GITHUB_SECRET_TOKEN: ${{ secrets.REVIEWABLE_GITHUB_SECRET_TOKEN }}
-  REVIEWABLE_FIREBASE_PRIVATE_KEY: ${{ secrets.REVIEWABLE_FIREBASE_PRIVATE_KEY }}
-  REVIEWABLE_GITHUB_CLIENT_SECRET: ${{ secrets.REVIEWABLE_GITHUB_CLIENT_SECRET }}
-  REVIEWABLE_ENCRYPTION_PRIVATE_KEYS: ${{ secrets.REVIEWABLE_ENCRYPTION_PRIVATE_KEYS }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SERVICE_ACCOUNT_PRIVATE_KEY }}
   LAST_SHIPPABLE_RUN: 4638
   BRANCH: ${{ github.ref }}
   GITHUB_TOKEN: ${{ github.token }}
@@ -98,7 +85,7 @@ jobs:
         with:
           node-version: '14'
 
-      - run: npm i -g yarn grunt-cli bower firebase-tools@5.x
+      - run: npm i -g yarn grunt-cli bower
       - name: Install root package dependencies
         run: yarn install --pure-lockfile
       - name: Install root bower dependencies
@@ -146,6 +133,7 @@ jobs:
         if: env.SHOULD_RELEASE == 'true'
         uses: getsentry/action-release@v1
         env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_PROJECT: ${{ env.SENTRY_PROJECT_ID }}
         with:
           sourcemaps: 'dist/static/js'
@@ -160,6 +148,9 @@ jobs:
           body: "Build ${{ env.BUILD_GROUP_NUMBER }}"
           tag: "build-${{ env.BUILD_GROUP_NUMBER }}"
           token: ${{ env.GITHUB_TOKEN }}
+
+      - name: Instal Firebase Tools
+        run:  yarn global add firebase-tools@5.x
 
       - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
