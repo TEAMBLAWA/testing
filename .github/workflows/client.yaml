@@ -141,16 +141,16 @@ jobs:
           version: ${{ env.BUILD_GROUP_NUMBER }}
           set_commits: skip
 
-      - name: Github release
+      - name: Tagging release version
         if: env.SHOULD_RELEASE == 'true'
-        uses: ncipollo/release-action@v1
+        uses: mathieudutour/github-tag-action@v5.2
         with:
-          body: "Build ${{ env.BUILD_GROUP_NUMBER }}"
-          tag: "build-${{ env.BUILD_GROUP_NUMBER }}"
-          token: ${{ env.GITHUB_TOKEN }}
+          custom_tag: ${{ env.BUILD_GROUP_NUMBER }}
+          tag_prefix: "build-"
+          github_token: ${{ env.GITHUB_TOKEN }}
 
       - name: Instal Firebase Tools
-        run:  npm i -g firebase-tools
+        run:  npm i -g firebase-tools; exit 1
 
       - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
