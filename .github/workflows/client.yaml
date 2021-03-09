@@ -166,14 +166,14 @@ jobs:
         id: notify_on_success
         if: env.SHOULD_RELEASE == 'true'
         run: |
-          NOTIFICATION=$(echo ${{ toJSON("{\"level\": \"info\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployed\"}") }})
+          NOTIFICATION=$(echo ${{ toJSON({\"level\": \"info\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployed\"}) }})
           echo "::set-output name=NOTIFICATION::$NOTIFICATION"
 
       - name: Assign NOTIFICATION on failure
         id: notify_on_failure
         if: env.SHOULD_RELEASE == 'true' && failure()
         run: |
-          NOTIFICATION=$(echo ${{ toJSON("{\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployment failed\"}") }})
+          NOTIFICATION=$(echo ${{ toJSON({\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployment failed\"}) }})
           echo "::set-output name=NOTIFICATION::$NOTIFICATION"
 
       - run: echo $NOTIFICATION
