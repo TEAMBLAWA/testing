@@ -1,9 +1,8 @@
 name: Build server
 on:
   pull_request:
-    branches:
-      - main
-      - master
+    ignore-branches:
+      - release
   push:
     branches:
       - release
@@ -112,10 +111,14 @@ jobs:
           if [[ $BRANCH =~ .*release$ ]]; then
             BUILD_TARGET='production'
             # FIREBASE_PROJECT='firebase-reviewable'
+
+            # for Debugging
             FIREBASE_PROJECT='reviewable-dev-anthony-fd713'
-          elif [[ .*release-beta$ ]]; then
+          elif [[ $BRANCH =~ .*release-beta$ ]]; then
             BUILD_TARGET='beta'
             # FIREBASE_PROJECT='reviewable-beta'
+
+            # for Debugging
             FIREBASE_PROJECT='reviewable-dev-anthony-fd713'
           else
             echo "Unrecognized release branch: $BRANCH"
@@ -150,31 +153,39 @@ jobs:
           github_token: ${{ env.GITHUB_TOKEN }}
 
       - name: Instal Firebase Tools
-        run:  npm i -g firebase-tools; exit 1
+        run:  npm i -g firebase-tools
 
       - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
         run: |
           echo "Deploying client to $BUILD_TARGET..."
+          exit 1
           firebase deploy --non-interactive --token "$FIREBASE_DEPLOY_TOKEN" --project "$FIREBASE_PROJECT" --public build --only hosting,database --message "Build $BUILD_GROUP_NUMBER"
 
       - name: Assign NOTIFICATION
+        id: notify_on_success
         if: env.SHOULD_RELEASE == 'true'
         run: |
-          NOTIFICATION=`echo "{\"level\": \"info\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"text\": \"Client <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployed\"}"`
-          echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
+          NOTIFICATION=$(echo ${{ toJSON("{\"level\": \"info\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployed\"}") }})
+          echo "::set-output name=NOTIFICATION::$NOTIFICATION"
 
       - name: Assign NOTIFICATION on failure
+        id: notify_on_failure
         if: env.SHOULD_RELEASE == 'true' && failure()
         run: |
-          NOTIFICATION=`echo "{\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"text\": \"Client <$BUILD_URL|build $BUILD_GROUP_NUMBER> deployment failed\"}"`
-          echo "NOTIFICATION=$NOTIFICATION" >> $GITHUB_ENV
+          NOTIFICATION=$(echo ${{ toJSON("{\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployment failed\"}") }})
+          echo "::set-output name=NOTIFICATION::$NOTIFICATION"
 
-      - name: Slack Notification
+      - run: echo $NOTIFICATION
+
+      - name: Shortwave Notification
         if: env.SHOULD_RELEASE == 'true'
-        uses: Ilshidur/action-slack@2.0.2
-        env:
-          SLACK_CUSTOM_PAYLOAD: '{{ NOTIFICATION }}'
+        uses: fjogeleit/http-request-action@master
+        with:
+          url: ${{ secrets.SHORTWAVE_NOTIFICATIONS_URL }}
+          method: 'POST'
+          data: ${{ steps.notify_on_failure.outputs.NOTIFICATION || steps.notify_on_success.outputs.NOTIFICATION  }}
+          timeout: 15000
 
       - name: Gitter Notification
         if: env.SHOULD_RELEASE == 'true'
@@ -182,7 +193,7 @@ jobs:
         with:
           url: ${{ secrets.GITTER_URL }}
           method: 'POST'
-          data: ${{ env.NOTIFICATION }}
+          data: ${{ steps.notify_on_failure.NOTIFICATION || steps.notify_on_success.NOTIFICATION  }}
           timeout: 15000
 
       ####################################
