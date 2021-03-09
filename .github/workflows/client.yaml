@@ -179,7 +179,7 @@ jobs:
       - run: echo $NOTIFICATION
 
       - name: Shortwave Notification
-        if: env.SHOULD_RELEASE == 'true'
+        if: always() && env.SHOULD_RELEASE == 'true'
         uses: fjogeleit/http-request-action@master
         with:
           url: ${{ secrets.SHORTWAVE_NOTIFICATIONS_URL }}
@@ -188,7 +188,7 @@ jobs:
           timeout: 15000
 
       - name: Gitter Notification
-        if: env.SHOULD_RELEASE == 'true'
+        if: always() && env.SHOULD_RELEASE == 'true'
         uses: fjogeleit/http-request-action@master
         with:
           url: ${{ secrets.GITTER_URL }}
