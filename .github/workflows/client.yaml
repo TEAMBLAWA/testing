@@ -153,13 +153,12 @@ jobs:
           github_token: ${{ env.GITHUB_TOKEN }}
 
       - name: Instal Firebase Tools
-        run:  npm i -g firebase-tools
+        run:  curl -sL https://firebase.tools | bash
 
       - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
         run: |
           echo "Deploying client to $BUILD_TARGET..."
-          exit 1
           firebase deploy --non-interactive --token "$FIREBASE_DEPLOY_TOKEN" --project "$FIREBASE_PROJECT" --public build --only hosting,database --message "Build $BUILD_GROUP_NUMBER"
 
       - name: Assign NOTIFICATION
