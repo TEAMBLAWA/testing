@@ -157,7 +157,7 @@ jobs:
 
       - name: Instal Firebase Tools
         if: env.SHOULD_RELEASE == 'true'
-        run:  curl -sL https://firebase.tools | bash
+        run:  npm i -g firebase-tools
 
       - name: Deploy to Firebase
         if: env.SHOULD_RELEASE == 'true'
@@ -178,8 +178,6 @@ jobs:
         run: |
           NOTIFICATION=$(echo "{\"level\": \"error\", \"message\": \"Client [build $BUILD_GROUP_NUMBER]($BUILD_URL) deployment failed\", \"html\": \"Client <a href=\\\"$BUILD_URL\\\">build $BUILD_GROUP_NUMBER</a> deployment failed\"}")
           echo "::set-output name=NOTIFICATION::$NOTIFICATION"
-
-      - run: echo $NOTIFICATION
 
       - name: Shortwave Notification
         if: always() && env.SHOULD_RELEASE == 'true'
