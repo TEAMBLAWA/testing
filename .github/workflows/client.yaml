@@ -32,7 +32,8 @@ env:
   SENTRY_PROJECT_ID: testing
   SENTRY_PROJECT: reviewableio/testing
 defaults:
-  shell: bash
+  run:
+    shell: bash
 jobs:
   Build:
     runs-on: ubuntu-latest
