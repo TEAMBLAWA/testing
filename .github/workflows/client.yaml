@@ -31,6 +31,8 @@ env:
   SENTRY_ORG: reviewableio
   SENTRY_PROJECT_ID: testing
   SENTRY_PROJECT: reviewableio/testing
+defaults:
+  shell: bash
 jobs:
   Build:
     runs-on: ubuntu-latest
@@ -153,6 +155,7 @@ jobs:
           github_token: ${{ env.GITHUB_TOKEN }}
 
       - name: Instal Firebase Tools
+        if: env.SHOULD_RELEASE == 'true'
         run:  curl -sL https://firebase.tools | bash
 
       - name: Deploy to Firebase
