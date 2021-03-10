@@ -50,9 +50,9 @@ jobs:
           INSTALL_DIR=/usr/local/bin
           DOWNLOAD_URL="https://firebase.tools/bin/linux/latest"
 
-          mkdir -p $INSTALL_DIR
-          curl -o "$INSTALL_DIR/firebase" -L --progress-bar $DOWNLOAD_URL
-          chmod +rx "$INSTALL_DIR/firebase"
+          sudo mkdir -p $INSTALL_DIR
+          sudo curl -o "$INSTALL_DIR/firebase" -L --progress-bar $DOWNLOAD_URL
+          sudo chmod +rx "$INSTALL_DIR/firebase"
 
           firebase --version
 
