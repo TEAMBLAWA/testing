@@ -46,11 +46,15 @@ jobs:
 
       # Bug in `act` tool causes git refs to assign with \\ as separators in windows environments
       # Bug: single quotes do not get intepreted correctly in if statements
-      - uses: enflo/curl-action@master
-        with:
-          curl: -sL https://firebase.tools --output install_firebase.sh
+      - run: |
+          INSTALL_DIR=/usr/local/bin
+          DOWNLOAD_URL="https://firebase.tools/bin/linux/latest"
 
-      - run: bash install_firebase.sh
+          mkdir -p $INSTALL_DIR
+          curl -o "$INSTALL_DIR/firebase" -L --progress-bar $DOWNLOAD_URL
+          chmod +rx "$INSTALL_DIR/firebase"
+
+          firebase --version
 
       - name: Assign SHOULD_RELEASE
         run: |
