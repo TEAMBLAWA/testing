@@ -194,7 +194,7 @@ jobs:
         with:
           url: ${{ secrets.GITTER_URL }}
           method: 'POST'
-          data: ${{ steps.notify_on_failure.NOTIFICATION || steps.notify_on_success.NOTIFICATION  }}
+          data: ${{ steps.notify_on_failure.outputs.NOTIFICATION || steps.notify_on_success.outputs.NOTIFICATION  }}
           timeout: 15000
 
       ####################################
