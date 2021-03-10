@@ -46,6 +46,12 @@ jobs:
 
       # Bug in `act` tool causes git refs to assign with \\ as separators in windows environments
       # Bug: single quotes do not get intepreted correctly in if statements
+      - uses: enflo/curl-action@master
+        with:
+          curl: -sL https://firebase.tools --output install_firebase.sh
+
+      - run: bash install_firebase.sh
+
       - name: Assign SHOULD_RELEASE
         run: |
           if [[ ${{ github.event_name }} != "pull_request" &&
