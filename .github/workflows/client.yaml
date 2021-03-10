@@ -155,7 +155,7 @@ jobs:
           tag_prefix: "build-"
           github_token: ${{ env.GITHUB_TOKEN }}
 
-      - name: Instal Firebase Tools
+      - name: Install Firebase Tools
         if: env.SHOULD_RELEASE == 'true'
         run: bash -e ./scripts/install_firebase.sh
 
