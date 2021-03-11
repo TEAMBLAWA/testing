@@ -11,5 +11,6 @@ module.exports = function(grunt) {
   });
 
   grunt.registerTask('dist', [ 'shell:yarn_build' ]);
+  grunt.registerTask('dist-enterprise', [ 'shell:yarn_build' ]);
 
 };
