@@ -3,13 +3,14 @@ module.exports = function(grunt) {
   require('load-grunt-tasks')(grunt);
   // Project configuration.
   grunt.initConfig({
+    pkg: grunt.file.readJSON('package.json'),
     shell: {
       yarn_build: {
         command: 'yarn build --silent'
       }
     },
     execute: {
-      buildRules: {
+      build_rules: {
         src: ['node_modules/fireplan/fireplan'],
         options: {
           args: ['rules.yaml']
@@ -17,8 +18,8 @@ module.exports = function(grunt) {
       }
     },
   });
-
-  grunt.registerTask('dist', [ 'shell:yarn_build', 'execute:buildRules' ]);
-  grunt.registerTask('dist-enterprise', [ 'shell:yarn_build', 'execute:buildRules' ]);
+  grunt.registerTask('dist', [ 'shell:yarn_build', 'execute:build_rules' ]);
+  grunt.registerTask('dist-enterprise', [ 'dist' ]);
+  grunt.registerTask('default', ['dist']);
 
 };
