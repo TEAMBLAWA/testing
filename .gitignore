@@ -28,3 +28,6 @@ diff_worker/bower_components
 bower_components
 
 .firebase
+
+rules_firecrypt.json
+rules.json

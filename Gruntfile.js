@@ -7,10 +7,18 @@ module.exports = function(grunt) {
       yarn_build: {
         command: 'yarn build --silent'
       }
-    }
+    },
+    execute: {
+      buildRules: {
+        src: ['node_modules/fireplan/fireplan'],
+        options: {
+          args: ['rules.yaml']
+        }
+      }
+    },
   });
 
-  grunt.registerTask('dist', [ 'shell:yarn_build' ]);
-  grunt.registerTask('dist-enterprise', [ 'shell:yarn_build' ]);
+  grunt.registerTask('dist', [ 'shell:yarn_build', 'execute:buildRules' ]);
+  grunt.registerTask('dist-enterprise', [ 'shell:yarn_build', 'execute:buildRules' ]);
 
 };

@@ -1,0 +1,1292 @@
+functions:
+  # TODO: update to invalidate any tokens with a 'provider' claim once minClientBuild guarantees us
+  # new v5 clients, since they were all issued with a buggy indefinite expiry.
+  - userid: >
+      auth.token.expires === null || auth.token.expires > now ? auth.uid : null
+  - isEncrypted(str): str == null || str.contains('\x91')
+  - isLowerCase(str): str == null || isEncrypted(str) || str.toLowerCase() == str
+  - lowercase: isLowerCase(next)
+  # Sanitize doesn't quite match the full escape function in our code, because we'd need to replace
+  # all 33 disallowed control characters and that seems like too many .replace() calls to foist onto
+  # Firebase.  Instead, we just escape ones we might actually expect to encounter, and if you run
+  # into any permission denied errors you can always figure out which one(s) need to be added.
+  - sanitize(str): >
+      str == null ? null : str.replace('\\', '\\5c').replace('.', '\\2e').replace('$', '\\24').replace('#', '\\23').replace('[', '\\5b').replace(']', '\\5d').replace('/', '\\2f').replace('\n', '\\0a').replace('\r', '\\0d').replace('\t', '\\09')
+  - star: >
+      root.system.star == null ? '*' : root.system.star
+  - bang: >
+      root.system.bang == null ? '!' : root.system.bang
+
+  - toKey(prop): >  # Never use on encrypted values!  It won't work.
+      prop == null ? null : sanitize(prop.toLowerCase())
+  - makePermissionKey(owner, repo, uid):
+      owner + '|' + repo + '|' + uid
+  - canPull(reviewKey): can('pull', reviewKey)
+  - canPush(reviewKey): can('push', reviewKey)
+  - canAdmin(reviewKey): can('admin', reviewKey)
+  - can(action, reviewKey): canDoRepo(action, ownerName(reviewKey), repoName(reviewKey))
+  - canDoRepo(action, owner, repo):
+      userid == 'server' || owner != null && repo != null && (
+        root.queues.permissions[makePermissionKey(owner, repo, '*')].verdict[action] == true ||
+        userid != null && (
+          root.queues.permissions[makePermissionKey(owner, repo, userid)].verdict[action] == true ||
+          root.queues.permissions[makePermissionKey(star, star, userid)].verdicts[owner][repo][action] == true
+        )
+      )
+  - ownerName(reviewKey): >
+      root.reviews[reviewKey].security.lowerCaseOwnerName != null ?
+        root.reviews[reviewKey].security.lowerCaseOwnerName :
+        toKey(root.reviews[reviewKey].core.ownerName)
+  - repoName(reviewKey): >
+      root.reviews[reviewKey].security.lowerCaseRepoName != null ?
+        root.reviews[reviewKey].security.lowerCaseRepoName :
+        toKey(root.reviews[reviewKey].core.repoName)
+  - repoSetting(reviewKey, setting):
+      root.repositories[ownerName(reviewKey)][repoName(reviewKey)].core.settings[setting]
+  - isMember(owner):
+      root.queues.permissions[makePermissionKey(owner, bang, userid)].verdict.member == true
+  - owns(owner):
+      root.queues.permissions[makePermissionKey(owner, bang, userid)].verdict.own == true
+  - isReview(reviewKey):
+      root.reviews.hasChild(reviewKey)
+  - isRevision(reviewKey, revisionKey):
+      root.reviews[reviewKey].revisions.hasChild(revisionKey)
+  - isFile(reviewKey, fileKey):
+      root.reviews[reviewKey].files.hasChild(fileKey)
+  - isDiscussion(reviewKey, discussionKey):
+      root.reviews[reviewKey].tracker.hasChild(discussionKey)
+  - isParticipant(reviewKey, discussionKey, userKey):
+      root.reviews[reviewKey].tracker[discussionKey].participants.hasChild(userKey)
+  - isUser(userKey): root.users.hasChild(userKey)
+  - currentUserKey: string && (userid == next || userid == 'server')
+  - userKey: string && (userid == 'server' || isUser(next))
+  - deprecated: next == prev || next == null
+  - prod: env.REVIEWABLE_FIREBASE == 'reviewable' || env.REVIEWABLE_ENV == 'enterprise'
+  - currentTimestamp: number && (now - next > -10000 && now - next < 10000 || userid == 'server')
+  - monotonicallyIncreasing: prev == null || next >= prev || userid == 'server'
+  - nextTrueOrPrevFalse(prop): next[prop] == true || prev[prop] == false || prev[prop] == null
+
+types:
+  lease: &lease  # WARNING: copied in /root/queues/permissions to relax .write on expiry
+    initial: number
+    expiry: required indexed number
+    time: number
+    attempts: number
+  ping: &ping
+    timestamp: required number
+    _lease:
+      expiry: number
+  guide: &guide  # just boolean now, extended structure is deprecated
+    .value: boolean || next.hasChildren(['timestamp', 'interval'])
+    timestamp: number
+    interval: number
+
+root:
+  .read/write: userid == 'server'
+
+  minClientBuild:
+    .read: true
+    .value: number
+
+  system:
+    minClientBuild:
+      .read: true
+      .value: number
+    minServerBuild:
+      .read: true
+      .value: number
+    oldestUsedClientBuild: number
+    oldestUsedServerBuild: number
+    maintenance:
+      .read: userid != null
+      switch:
+        .read: true
+        .value: required next == true
+      message: string  # not encrypted so it can be read while keys are being rotated
+    uploadSecret: string
+    star: encrypted string  # the literal '*', but encrypted
+    bang: encrypted string  # the literal '!', but encrypted
+    keyCheck:  # used by clients to check if they have a current AES encryption key
+      .read: true
+      .value: encrypted string
+    publicKey:  # DEPRECATED
+      .read: true
+      .value: string
+    gheVersion:
+      .read: true
+      .value: encrypted string
+    ping:  # a spot for client to try out writes, make sure Firebase is alive
+      .write: true
+      .value: next == 1
+
+  queues:
+    github:
+      ping: *ping
+      $eventKey:
+        .write: prev == null && !prod
+        _lease: *lease
+        eventType: string
+        statusSyncKey: indexed encrypted string  # used for removing stale duplicates
+        pusher:
+          name: encrypted string
+          .more: true
+        member:
+          login: encrypted string
+          .more: true
+        organization:
+          login: encrypted string
+          .more: true
+        repository:
+          name: encrypted string
+          full_name: encrypted string
+          .more: true
+          owner:
+            login: encrypted string
+            name: encrypted string
+            .more: true
+        .more: true
+    githubMergeableSync:
+      ping/encrypted[]: *ping
+      $prKey/encrypted[#|#|.]:  # owner|repo|prNumber
+        _lease: *lease
+        owner: required encrypted string
+        repo: required encrypted string
+        prNumber: required number
+        retryInterval: number  # if present, don't retry more often than every this many ms
+    githubPullRequestSync:
+      ping/encrypted[]: *ping
+      $prKey/encrypted[#|#|.|.]:  # owner|repo|prNumber|userKey (userKey is '*' when defaulting to connector)
+        .read: prev == null || prev.userKey == userid
+        .write: prev == null && next.userKey != null || prev.userKey == next.userKey
+        .value:
+          nextTrueOrPrevFalse('updateReview') &&
+          nextTrueOrPrevFalse('rewriteSoftRevisions') &&
+          nextTrueOrPrevFalse('syncComments') &&
+          nextTrueOrPrevFalse('syncStatus') &&
+          nextTrueOrPrevFalse('overrideError') &&
+          nextTrueOrPrevFalse('mustSucceed') &&
+          nextTrueOrPrevFalse('overrideBadge')
+        _lease: *lease
+        userKey: currentUserKey
+        owner: required encrypted string
+        repo: required encrypted string
+        prNumber: required number
+        updateReview: boolean
+        rewriteSoftRevisions: boolean
+        syncComments: boolean
+        syncStatus: boolean
+        overrideError: boolean
+        mustSucceed: boolean
+        overrideBadge: boolean
+        responseKeys:
+          .value: next.parent().userKey != null || !next.hasChildren()
+          $responseKey/few: next == true
+        timestamp: required number
+    githubRenames:
+      ping: *ping
+      $identityKey:
+        .value: $identityKey.matches(/^(org|repo)-\d+$/)
+        _lease: *lease
+        source: required encrypted string && lowercase
+        target: required encrypted string && lowercase
+    webhooks:
+      ping/encrypted[]: *ping
+      $prKey/encrypted[#|#|.]:  # owner|repo|prNumber
+        _lease: *lease
+        owner: required encrypted string
+        repo: required encrypted string
+        prNumber: required number
+        timestamp: required number
+        url: required encrypted string
+        description: required encrypted string
+        pendingUsernames: encrypted string  # comma-separated, any order, any case
+    reconciliation:
+      ping/encrypted[]: *ping
+      $prKey/encrypted[#|#|.]:  # owner|repo|prNumber
+        .write: true
+        .value:
+          next.updateCompletion == true || prev.updateCompletion == false ||
+          prev.updateCompletion == null
+        _lease: *lease
+        owner: required encrypted string
+        repo: required encrypted string
+        prNumber: required number
+        updateCompletion: boolean
+        timestamp: required number
+    reconciliationRefresh:
+      ping/encrypted[]: *ping
+      $prKey/encrypted[#|#|.]:  # owner|repo|prNumber
+        .value:
+          next.updateCompletion == true || prev.updateCompletion == false ||
+          prev.updateCompletion == null
+        _lease: *lease
+        owner: required encrypted string
+        repo: required encrypted string
+        prNumber: required number
+        updateCompletion: boolean
+    stripe:
+      ping: *ping
+      $eventKey:
+        .write: prev == null && !prod
+        _lease: *lease
+        id: required string
+        done: boolean
+        .more: true
+    memberships:  # actually anything organization-related that needs to be checked regularly
+      ping/encrypted[]: *ping
+      $organization/encrypted:
+        .value: $organization === sanitize(next.organization)
+        _lease: *lease
+        organization: required encrypted string && lowercase
+        subscribers:  # deprecated, queried directly from /subscriptions instead
+          $subscriptionKey/few:
+            subscriberKey: required string
+            visibility: oneOf('public', 'private', '*')
+            coverage: oneOf('team', 'all')  # TODO make required
+            teamId: number
+    requests:
+      ping/encrypted[]: *ping
+      $requestKey/encrypted:  # some request keys are compounds of owner/repo
+        .write:
+          prev == null && userid != null ||
+          prev.action == 'checkCoverage' && next.action == 'checkCoverage' &&
+            prev.ownerName == next.ownerName && prev.repoName == next.repoName &&
+            prev.userKey == next.userKey ||
+          prev.action == 'fillIssues' && next.action == 'fillIssues' &&
+            prev.ownerName == next.ownerName && prev.repoName == next.repoName ||
+          prev.action == 'evaluate' && next.action == 'evaluate' &&
+            prev.ownerName == next.ownerName && prev.repoName == next.repoName &&
+            prev.userKey == next.userKey && prev.type == next.type &&
+            prev.reviewKey == next.reviewKey && prev.context == next.context &&
+            prev.code == next.code ||
+          prev.action == 'fillUserProfile' && next.action == 'fillUserProfile' &&
+            prev.userKey == next.userKey && prev.username == next.username &&
+            prev.userId == next.userId
+        _lease: *lease
+        action:  # deprecated actions are on the last line
+          required oneOf(
+            'backfill', 'backfillConnections', 'checkCoverage', 'connect', 'debugFirebase',
+            'disassociate', 'disconnect', 'enroll', 'evaluate', 'fillIssues', 'fillUserProfile',
+            'getReviewState', 'initRepoSettings', 'mintSimulatedToken', 'reconcile', 'reconnect',
+            'saveCoupon', 'subscribe', 'syncCustomer', 'unenroll', 'upload',
+            'updatePullRequest'
+          )
+        userKey: required currentUserKey
+        ownerName: encrypted string
+        repoName: encrypted string
+        prNumber: number
+        reviewKey: string
+        type: string
+        planId: string
+        coverage: string
+        teamId: number
+        contributorTeamId: number
+        extraOrganizations:
+          $index/few: encrypted string && $index.matches(/^\d\d?$/)
+        personalMemo: string
+        stripeToken: string
+        username: encrypted string
+        userId: string
+        filter: string
+        errorCode: string
+        couponCode: string
+        fileName: encrypted string
+        size: number
+        # for 'evaluate'
+        code: encrypted string  # evaluate
+        context: encrypted string  # evaluate
+        debugFirebase:
+          claims: any
+          method: required string
+          path: required string
+          value: any
+    responses:
+      ping/encrypted[]: *ping
+      $requestKey/encrypted:  # response keys are same as request keys
+        .read: prev == null || userid == prev.userKey
+        .write: next == null && (prev == null || userid == prev.userKey)
+        _lease: *lease
+        userKey: required string  # user record may not yet exist
+        outcome: required string
+        error: encrypted string
+        result:
+          .value: encrypted
+          state: encrypted string
+          upload:
+            form:
+              key: encrypted string
+              path: encrypted string
+              .more: true
+            .more: true
+          download:
+            url: encrypted string
+          .more: true
+    polls:
+      ping: *ping
+      $pollKey/few:  # 'poll_' + index
+        _lease: *lease
+        index: required number
+    cron:
+      ping: *ping
+      $taskKey/few:
+        _lease: *lease
+        interval: required number
+        checkpointKey: encrypted string
+        counters:
+          $counter: number
+        lastResult: encrypted string
+    permissions:
+      ping/encrypted[]: *ping
+      $permissionKey/encrypted[#|#|.]:  # ownerName|repoName|userKey, ownerName|repoName|*, *|*|userKey, ownerName|!|userKey
+        .read:
+          userid == data.userKey || data.userKey == null ||
+          data == null && ($permissionKey.endsWith('|' + userid) || $permissionKey.endsWith('*'))
+        .write:
+          next == null && (
+            prev == null || prev.userKey == null && prev.verdict.pull != true ||
+            userid == prev.userKey)
+        _lease:
+          .write:
+            next == null &&
+            (prev == null || prev.parent().userKey == userid || prev.parent().userKey == null)
+          initial: number
+          expiry: required indexed number
+          time: number
+          attempts: number
+        ownerName:
+          .value: required encrypted string  # can be '*' for bulk checks, if userKey supplied
+          .write: true
+        repoName:
+          .value: required encrypted string  # can be '*' for bulk checks if userKey supplied, or '!' for owner checks
+          .write: true
+        userKey:
+          .value: indexed currentUserKey  # if no userKey, then tracks whether repo is public
+          .write: userid != null && (prev == null || prev == userid)
+        timestamp:
+          .value: required currentTimestamp
+          .write: true
+        scopes: string  # comma-separated, in alphabetical order, written by server with verdict
+        writeTimestamp:
+          .value: number
+          .write: true
+        verdict:  # used for single-repo checks, and for multi-repo errors
+          pull: boolean  # null if unknown
+          push: boolean  # null if unknown
+          admin: boolean  # null if unknown
+          member: boolean  # null if unknown, only for repoName == '!' membership checks
+          own: boolean  # null if unknown, only for repoName == '!' ownership checks
+          error: encrypted string
+        verdicts:  # used for multi-repo checks only
+          $ownerName/encrypted/few:
+            .value: isLowerCase($ownerName)
+            $repoName/encrypted/few:
+              .value: isLowerCase($repoName)
+              pull: boolean  # null if unknown
+              push: boolean  # null if unknown
+              admin: boolean  # null if unknown
+
+
+  enrollments:
+    numTasks: number
+    list:
+      $enrollmentKey/few:  # userKey|type
+        .value: $enrollmentKey == next.userKey + '|' + next.type
+        userKey: required userKey
+        type: required oneOf('public', 'private', 'personal')
+
+  identities:
+    $key:  # org-NNN or repo-NNN
+      .value: $key == 'org-' + next.id || $key == 'repo-' + next.id
+      id: required number
+      # name either 'owner' (if org-) or 'owner/repo' (if repo-), always lowercase
+      name: >
+        required encrypted indexed string && lowercase && (
+          isEncrypted(next) || $key.beginsWith(next.val().contains('/') ? 'repo-' : 'org-')
+        )
+
+  organizations:
+    $organization/encrypted:
+      autoConnect:
+        .read: isMember($organization)
+        .write: owns($organization)
+        connectorKey: currentUserKey
+        error: string
+      prototypeRepository:
+        .read/write: owns($organization)
+        name: required encrypted string
+        connectorKey: required currentUserKey
+      owners:
+        $userKey: next == true
+
+  repositories:
+    $ownerName/encrypted:  # lowercase and escaped
+      .value: isLowerCase($ownerName)
+      $repoName/encrypted:  # lowercase and escaped
+        .value: isLowerCase($repoName)
+        core:
+          .read: canDoRepo('pull', $ownerName, $repoName)
+          id: number  # DEPRECATED
+          renamed:  # if repo was renamed, this points to the new one
+            ownerName: required encrypted string
+            repoName: required encrypted string
+          connection: oneOf('active', 'closed', 'broken')
+          connector: userKey  # person who connected the repo (null if connection closed)
+          settings:
+            .write: canDoRepo('admin', $ownerName, $repoName)
+            reviewableBadge: oneOf('none', 'pullRequest', 'comment')  # default 'pullRequest'
+            badgePullRequestLocation: oneOf('top', 'bottom')  # default 'bottom'
+            commentBadgeUserKey: userKey
+            revisionSplitStrategy: oneOf('combinedCommits', 'onePerCommit')  # defaults to combinedCommits
+            lgtmText: encrypted string
+            gitHubStatusUpdates: oneOf('always', 'accessed', 'never')  # default 'accessed'
+            mergeFlavors:  # deprecated for modern GH, but older GHEs still use it; each defaults to true
+              .value: next.merge != false || next.squash != false || next.fastForward != false
+              merge: boolean
+              squash: boolean
+              fastForward: boolean
+            discussionDismissalRestriction: oneOf('push', 'admin')
+            includeObsoleteFilesInConditionState: boolean
+          overlapOtherReviewers: boolean
+          maxNewRevisionsPerPush: number  # hardcoded default
+          reviewableBadge: deprecated
+          errorCode: oneOf('badauth', 'notadmin', 'thirdparty', 'nosub', 'overquota', 'notfound')
+          error: string
+          hookEvents: string
+        adminUserKeys: string  # comma-separated userKeys of last known repo admins
+        pushUserKeys: string  # comma-separated userKeys of last known repo pushers
+        current:
+          .read: canDoRepo('pull', $ownerName, $repoName)
+          openPullRequestsCount: required number && next >= 0
+          openPullRequests:
+            $pullRequestId/few: string  # actually reviewKey, but can be written before review created
+        pullRequests:
+          .read: canDoRepo('pull', $ownerName, $repoName)
+          $pullRequestId/few: string  # actually reviewKey, but can be written before review created
+        oldPullRequests:  # pull requests from before a repo was re-created
+          $pullRequestId/few: string  # actually reviewKey, but can be written before review created
+        issues:
+          .read: canDoRepo('pull', $ownerName, $repoName)
+          lastSyncTimestamp: number && now - next > -5000 && now - next < 5000
+          index:
+            $issueNumber/few:
+              title: required encrypted string
+              state: required oneOf('open', 'closed')
+              creatorKey: required string
+              type: required oneOf('issue', 'pr')
+        protection:
+          .read: canDoRepo('admin', $ownerName, $repoName)
+          $branch/encrypted/few:
+            # a stripped copy of the last-fetched GitHub protection struct for this branch
+            enforce_admins:
+              enabled: boolean
+            required_status_checks:
+              include_admins: boolean  # deprecated
+              strict: boolean
+              contexts:
+                $i/few: string
+            required_pull_request_reviews:
+              dismissal_restrictions:
+                users:
+                  $i/few:
+                    login: encrypted string
+                    id: number
+                teams:
+                  $i/few:
+                    slug: encrypted string
+                    id: number
+              dismiss_stale_reviews: boolean
+              require_code_owner_reviews: boolean
+              required_approving_review_count: number
+            restrictions:
+              users:
+                $i/few:
+                  login: encrypted string
+                  id: number
+              teams:
+                $i/few:
+                  slug: encrypted string
+                  id: number
+
+  badConnections:
+    $ownerRepoName/encrypted[#|#]:  # lowercase, escaped, ownerName|repoName
+      .value: isEncrypted($ownerRepoName) || $ownerRepoName == toKey(next.ownerName) + '|' + toKey(next.repoName)
+      ownerName: required encrypted indexed string && lowercase
+      repoName: required encrypted string && lowercase
+      connectorKey: indexed required userKey
+      timestamp: required number
+
+  reviews:
+    $reviewKey:
+      .read: data == null || canPull($reviewKey)
+      .ref: review
+      core:
+        .value:
+          next != null && (prev.lastAccessTimestamp == null || next.lastAccessTimestamp != null)
+        ownerName: required encrypted string
+        repoName: required encrypted string
+        pullRequestId: required number
+        pullRequestTimestamp: number  # required nowadays, but no backfill
+        state: required oneOf('open', 'closed', 'merged')
+        lastAccessTimestamp: number
+        lastSweepTimestamp: number  # deprecated
+        revisionSplitStrategy:
+          .value: oneOf('combinedCommits', 'onePerCommit')  # defaults to repo's value
+          .write: canPush($reviewKey)
+        branch: encrypted string  # owner:ref, or null if deleted
+        branchRepoName: encrypted string
+        baseBranch: encrypted string  # owner:ref, or null if deleted
+        baseBranchHeadSha: string
+        lastRevisionKey: string && review.revisions.hasChild(next.val())
+        authorKey: required string  # Don't validate as userKey, since it might not yet be created
+        assigneeKey: string  # deprecated
+        assignees:  # deprecated
+          .write: canPush($reviewKey)
+          $userKey/few: next == true
+        # If true then GH multi-assignees have been merged in and GH is source of record from now on
+        assigneesMerged: boolean  # deprecated
+        # title may be stale, as GitHub doesn't notify us of changes, or missing if review was swept
+        title: encrypted string
+        commitCount: number
+        fileCount: number  # to guard against loading excessive numbers of files on dashboard
+        # For the PR description, see discussions['-top'].comments['prDescription'].
+        error: encrypted string
+      security:
+        lowerCaseOwnerName: encrypted string
+        lowerCaseRepoName: encrypted string
+      participants:
+        $userKey/few:  # don't validate as userKey since it might not yet be created
+          author: boolean
+          assignee: boolean
+          requestedReviewer: boolean
+          localMentionee:
+            .write: userid == $userKey && next == true && canPull($reviewKey)
+            .value: boolean
+          blocker: boolean
+          sanction:  # 'pending' is deprecated
+            oneOf('approved', 'changes_requested', 'commented', 'dismissed', 'pending')
+          draftsPending:
+            # Sometimes this permission fails for reasons unknown when loading a review that needs
+            # to be created, so let it pass if the user is erasing the flag even if we can't verify
+            # their pull permissions.  This should prevent the permission failure, but still won't
+            # allow people to litter random reviews they don't have access to with draftsPending
+            # flags.
+            .write: userid == $userKey && (next == null || canPull($reviewKey))
+            .value: boolean
+          lastUpdateTimestamp:
+            .write: userid == $userKey && canPull($reviewKey)
+            .value: number
+      requestedTeams:
+        $nodeId/few:
+          slug: required encrypted string
+          name: required encrypted string
+          id: required string
+      updates:
+        assigneesTimestamp:
+          .value: number
+          .write: canPush($reviewKey)  # custom multi-assignees legacy
+        requestedReviewersTimestamp: number
+        labelsTimestamp: number
+        milestoneTimestamp: number
+      lastWebhook:
+        description: required encrypted string
+        pendingUsernames: required encrypted string  # sorted lowercase comma-separated usernames
+        error:
+          .write: canAdmin($reviewKey) && next == null
+          .value: encrypted string
+      revisions:
+        $revisionKey/few:
+          priorRevisionKey: string && review.revisions[next] != null
+          commitSha: required string
+          baseCommitSha: required string
+          equivalentCommitShas: string  # comma-separated
+          equivalentBaseCommitShas: string  # comma-separated
+          commitTimestamp: required number
+          obsolete: boolean  # whether this revision contains commits currently in the PR
+          capturerKey:
+            .write: (prev == null || next != null || prev == next) && canPull($reviewKey)
+            .value: currentUserKey || prev == next
+          softCapturerKey:
+            .write: (prev == null || next != null || prev == next) && canPull($reviewKey)
+            .value: currentUserKey || prev == next
+          captureTimestamp:
+            .write: (prev == null || prev == next) && canPull($reviewKey)
+            .value: currentTimestamp || prev == next
+          commits:
+            $arbitraryKey/few:
+              timestamp: required number
+              sha: required string
+              title: required encrypted string
+              authorKey: string  # don't validate as userKey since it might not yet be created
+              committerKey: string  # ditto
+      files:
+        $fileKey/few:
+          path: required encrypted string
+          group: encrypted string
+          revisions:
+            $revisionKey/few:
+              action: required oneOf('added', 'modified', 'removed', 'kept')
+              fileSha: string
+              baseFileSha: string
+              fileMode: string
+              baseFileMode: string
+              type: oneOf('blob', 'commit')  # if missing, assume 'blob'; 'commit' means submodule
+              reviewed: boolean
+              reviewers:
+                $userKey/few:
+                  .write: userid == $userKey
+                  .value: isUser($userKey) && (next == true || currentTimestamp)
+      metaFiles:
+        $fileKey/few:
+          path: required encrypted string
+          revisions:
+            $revisionKey/few:  # value is fileSha, $revisionKey can be 'other' as default
+              string && (
+                $revisionKey === 'other' || review.revisions.hasChild($revisionKey))
+      discussions:
+        $discussionKey/few:
+          .write: prev == null && canPull($reviewKey)
+          revisionKey: string && review.revisions.hasChild(next)
+          revisionBase: boolean  # if true, use revision's base commit
+          otherRevisionKey: string && review.revisions.hasChild(next)
+          otherRevisionBase: boolean  # if true, use other revision's base commit
+          fileKey: string && review.files.hasChild(next)
+          line: number
+          timestamp: required number  # timestamp of first comment
+          comments:
+            $commentKey/few:
+              # If a client's Publish issues the final write, gets disconnected while it's in
+              # progress, but the write still succeeds, the client will automatically retry when it
+              # reconnects.  We don't want to allow updating (overwriting) comments, but we'd like
+              # to ensure that this retry succeeds so we allow "overwriting" with all the same
+              # values except with a few minutes' slack on the timestamp.
+              .write:
+                (prev == null ||
+                  prev.authorKey == next.authorKey && prev.markdownBody == next.markdownBody &&
+                  prev.htmlBody == next.htmlBody && next.timestamp - prev.timestamp < 5 * 60 * 1000 &&
+                  prev.draftTimestamp == next.draftTimestamp &&
+                  prev.provenance == next.provenance) &&
+                canPull($reviewKey)
+              authorKey: required currentUserKey
+              markdownBody: required encrypted string
+              htmlBody: required encrypted string
+              timestamp: required number
+              draftTimestamp: number
+              provenance: oneOf('synthetic', 'github', 'email')  # default is Reviewable
+      gitHubComments:
+        $commentId/few:
+          timestamp: required number
+      tracker:  # separate from discussions for efficient fetching in dashboard
+        $discussionKey/few:  # Can't check for matching discussion since it might not exist yet
+          firstAuthorKey:
+            .write: canPull($reviewKey) && next == userid
+            .value:
+              currentUserKey && (userid == 'server' || prev.parent().participants == null) &&
+              next.parent().participants[next].role != null
+          participants:
+            $userKey/few:
+              # Don't validate isUser($userKey) since it might not exist yet.
+              .write: canPull($reviewKey) && $userKey == userid
+              .value:
+                (!prev.hasChild('timestamp') || next.hasChild('timestamp')) &&
+                (!prev.hasChild('lastPostTimestamp') || next.hasChild('lastPostTimestamp'))
+              # Timestamp of latest comment read by $userKey.
+              timestamp: number && monotonicallyIncreasing && now - next > -10000
+              # Timestamp of last comment made by $userKey.
+              lastPostTimestamp: number && monotonicallyIncreasing && now - next > -10000
+              # Timestamp of last comment accepted by $userKey, or timestamp if missing.
+              # DEPRECATED, set to Number.MAX_VALUE if role is 'discussing' and participant conforms
+              # to new semantics in #510.
+              acceptedTimestamp: >
+                number &&
+                (next + 1 == next || next <= next.parent().timestamp) &&
+                (userid == 'server' || (prev == null || prev == prev + 1 ?
+                  (prev.parent().timestamp == null ? true : next >= prev.parent().timestamp) :
+                  next >= prev
+                ))
+              # Timestamp of last resolution-breaking comment made by $userKey, or lastPostTimestamp
+              # if missing.
+              # DEPRECATED, set to null if participant conforms to new semantics in #510
+              lastObjectionTimestamp: >
+                number && next <= next.parent().lastPostTimestamp && (
+                  userid == 'server' || (prev == null ?
+                    (prev.parent().lastPostTimestamp == null ? true : next >= prev.parent().lastPostTimestamp) :
+                    next >= prev
+                  )
+                )
+              # User's disposition towards the discussion.
+              role:
+                # 'withdrawn' is deprecated.
+                .value: >
+                  required oneOf(
+                    'following', 'mentioned', 'dismissed', 'withdrawn', 'satisfied', 'discussing',
+                    'blocking', 'working', 'informing') &&
+                  ($discussionKey != '-top' || next == 'following' || next == 'mentioned') &&
+                  (userid == 'server' ||
+                    (next != 'following' ||
+                      prev == null || prev == 'following' || prev == 'mentioned' || prev == 'dismissed') &&
+                    (next != 'mentioned' ||
+                      (prev == null || prev == 'following' || prev == 'mentioned') &&
+                      canPull($reviewKey) && $userKey != userid) &&
+                    (next != 'dismissed' ||
+                      next.parent().dismisserKey != null && $userKey != userid && (
+                        (prev == 'satisfied' || prev == 'discussing' || prev == 'blocking' ||
+                         prev == 'working' || prev == 'informing') &&
+                         can(
+                           repoSetting($reviewKey, 'discussionDismissalRestriction') === null ?
+                             'push' : repoSetting($reviewKey, 'discussionDismissalRestriction'),
+                           $reviewKey) ||
+                        prev == 'dismissed'
+                      ))
+                  )
+                .write:
+                  next == 'following' && prev == null &&
+                    $userKey == review.core.authorKey && canPull($reviewKey) ||
+                  next == 'mentioned' || next == 'dismissed'  # permissions enforced in .value
+              roleTimestamp:
+                .value: required number
+                # If allowed to write a new role, also allowed to write timestamp.
+                .write: next.parent().role != prev.parent().role || next == prev
+              forced:
+                .write:
+                  prev.parent().role == null && next.parent().role == 'following' &&
+                  $userKey == review.core.authorKey && canPull($reviewKey) && next == true
+                .value: boolean
+              dismisserKey:
+                .value: userKey
+                .write:
+                  next.parent().role == 'dismissed' && next == userid ||
+                  next.parent().role != 'dismissed' && next == null
+      labels:
+        $label/encrypted/few: next == true
+      milestone: encrypted string
+      sentiments:
+        $userKey/few:
+          .write: userid == $userKey
+          # .value: isUser(userKey), but may not be yet when the sentiment is written
+          comments:
+            $commentKey/few:
+              emojis: encrypted string  # space-separated emoji names from given comment
+              timestamp: required number  # the comment's timestamp, for ordering
+      statuses:
+        $revisionKey/few:
+          combinedState: oneOf('error', 'failure', 'inprogress', 'missing', 'pending', 'success')
+          counts:
+            $state/few: number  # number of services in each state
+          services:
+            $context/encrypted/few:
+              state: required oneOf('error', 'failure', 'inprogress', 'missing', 'pending', 'success')
+              context: required encrypted string && (isEncrypted(next) || $context == sanitize(next) || next == '')
+              required: oneOf('non_admins', 'everyone')
+              description: required encrypted string
+              url: encrypted string
+              numAnnotations: number  # number of annotations if this is a Check
+              pendingReviewers:
+                # comma-separated userKeys
+                string && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              gitHubApprovalsDisabled:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              autoRequestReviewers:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              branchUpdatesDisabled:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              defaultMergeCommitMessage:
+                encrypted string && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              defaultSquashCommitMessage:
+                encrypted string && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              mergeFlavor:
+                oneOf('merge', 'squash', 'rebase') && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              webhook:  # deprecated
+                encrypted string && (isEncrypted(next.parent().context) || next.parent().context == 'code-review/reviewable')
+              fastForwardAllowed:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == ' mergeable')
+              rebaseAllowed:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == ' mergeable')
+              branchNeedsUpdate:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == ' mergeable')
+              branchProtected:
+                boolean && (isEncrypted(next.parent().context) || next.parent().context == ' mergeable')
+              condition:
+                oneOf('dirty', 'unknown', 'blocked', 'behind', 'unstable', 'has_hooks', 'clean', 'draft') &&
+                (isEncrypted(next.parent().context) || next.parent().context == ' mergeable')
+              timestamp: required number
+
+  # Holds maps of renamed files for commit pairs.
+  filemaps:
+    $reviewKey:
+      .read: data == null || canPull($reviewKey)
+      $leftShaRightSha:  # left and right commit shas
+        .write:
+          canPush($reviewKey) ||
+          canPull($reviewKey) && (prev == null || prev.done == 'untrusted') && next.done == 'untrusted'
+        $fileKey/few:  # renamed from/to depending on whether file's action is added/removed
+          # It's possible for a client to attempt to write a filemap with file keys that only had
+          # provisional revisions and got removed in a subsequent sync.  This will cause a
+          # permissions failure that the client will simply ignore.  I'm keeping the file key
+          # validation in place here since it's right more often than not and prevents DoS wide
+          # writes.
+          .value: isFile($reviewKey, $fileKey)
+          key: required isFile($reviewKey, next)
+          sha: required string
+        # attribute name is historical and misleading
+        done: >
+          required next == (canPush($reviewKey) ? true : 'untrusted')
+
+  linemaps:
+    $reviewKey:
+      .read: data == null || canPull($reviewKey)
+      .write: canPush($reviewKey)
+      $leftShaRightSha:  # left and right blob (file) shas
+        $entryKey/few:
+          type: required oneOf('bijection', 'bottom')
+          accuracy: required number
+          leftStart: number
+          leftEnd: required number
+          rightStart: number
+          rightEnd: required number
+
+  archivedReviews:
+    $reviewKey:
+      timestamp: required number  # the timestamp that was used to decide to archive the review
+      archivalTimestamp: required number  # when the review was archived
+      payload: required encrypted string  # compressed review JSON
+
+  subscriptions:
+    $subscriptionId:
+      .read: userid == data.subscriberKey || data == null
+      subscriberKey: required userKey
+      organization: required encrypted indexed string && lowercase  # '*' for all organizations
+      visibility: oneOf('*', 'public', 'private')  # default is '*'
+      masterSubscriptionKey: indexed string  # multi-org subscriptions point to parent one
+      stripe:
+        .more: true
+      coverage: required oneOf('solo', 'team', 'all')
+      teamId: number
+      contributorTeamId: number
+      seatsTeamConstraints:  # for enterprise seat licenses only
+        .write: userid == data.parent().subscriberKey
+        $teamFullName: number  # organization/team-slug key, team id value
+      expiryTimestamp: number  # for enterprise licenses only
+      periods:
+        $periodStart/few:  # in millis, or 'current' for current period
+          activeUsersCount: required number && next >= 0
+          totalUsersCount: number && next >= 0  # TODO: make required
+          overage: boolean
+          activeUsers:
+            $userKey/few: boolean  # true if active, false if rejected
+      seats:
+        $userKey/few: currentTimestamp  # last time user was active
+
+  rules:
+    $ownerName/encrypted:
+      $repoName/encrypted:
+        .read/write: canDoRepo('admin', $ownerName, $repoName)
+        reviewCompletion: encrypted string
+
+  memberships:
+    $itemKey/encrypted[#|#]:  # organization|userKey
+      .value: isEncrypted($itemKey) || $itemKey == toKey(next.organization) + '|' + next.userKey
+      .read: userid == data.userKey || data == null
+      organization: required encrypted indexed string && lowercase
+      userKey: required indexed string
+      company: required encrypted string  # proper case
+      logoUrl: encrypted string
+      publicOnly: boolean
+
+  users:
+    $userKey:  # the GitHub user id prefixed by 'github:'
+      .read: userid == $userKey
+      timestamp:
+        .value: number  # creation timestamp, required for registered users
+        .write: userid == $userKey
+      lastUpdateTimestamp: number  # last update of public data by fetch from GitHub
+      core:
+        gitHubToken: string  # if prefixed with a label + colon it's encrypted
+        gitHubTokenRevocationTimestamp: number
+        email:
+          .value: encrypted string
+          .write: userid == $userKey
+        billingEmail:
+          .value: encrypted string
+          .write: userid == $userKey
+        public:  # overwritten by the client at each page load
+          .read: true
+          .write: userid == $userKey
+          .value: required
+          username: required encrypted string
+          displayName: encrypted string
+          avatarUrl: encrypted string
+      dashboardCache:
+        .write: userid == $userKey
+        organizations:
+          $orgKey/encrypted/few:  # lowercase organization name
+            name: required encrypted string
+            avatarUrl: encrypted string
+        teams: encrypted string  # space-separated team slugs
+        pushableRepos: encrypted string  # space-separated pre-filtered lowercase full repo names
+      stripe:  # system writes only
+        customerId: string
+        trialEndTimestamps:
+          $organization/encrypted/few: number && isLowerCase($organization)
+        card:
+          last4: required string
+          brand: required string
+          expiry:
+            .value: required
+            month: required number
+            year: required number
+        coupon:  # the coupon this user is holding to apply to new subscriptions; Stripe object
+          .more: true
+      enrollments:  # system writes only
+        public: &enrollment
+          enrolled: boolean
+          lastEnrolledPullRequestTime: string  # GitHub created_at timestamp
+          errorCode: oneOf('badauth', 'noquota', 'thirdparty')
+          error: string
+        private: *enrollment
+        personal:
+          enrolled: boolean
+          errorCode: oneOf('badauth')
+          error: string
+      index:  # system writes only
+        subscriptions:
+          $subscriptionId/few: boolean
+        memberships:
+          $membershipKey/encrypted[#|#]/few: next == true
+        # An extra index of mentions in top-level review comments, as GitHub fails to index these
+        # (see https://github.com/Reviewable/Reviewable/issues/636).  This collection grows without
+        # limit, but the absolute number should be low enough that this won't become a material
+        # contributor to database size.
+        # New entries are checked for permission before being written, and removed opportunistically
+        # if permissions change.  It's possible to end up with entries here for which the user no
+        # longer has pull permission but it doesn't leak information because the user already knows
+        # about the repo as they had access previously.
+        extraMentions:
+          $prKey/encrypted[#|#|.]:  # lowercase, escaped owner|repo|prNumber
+            .value:
+              isEncrypted($prKey) ||
+              $prKey == toKey(next.owner) + '|' + toKey(next.repo) + '|' + next.prNumber
+            owner: required encrypted string && lowercase
+            repo: required encrypted string && lowercase
+            prNumber: required number
+            closedTimestamp:
+              .value: indexed number  # null if PR is open
+              .write: userid == $userKey
+      notifications:  # system writes only
+        $notificationKey/few:
+          nextAttemptTimestamp: number
+          numAttempts: number
+          lastSentTimestamp: number
+
+      onboarding:
+        .write: userid == $userKey
+        # Onboarding checklist flags
+        demoReview: boolean
+        ownReview: boolean  # currently unused
+        enroll: boolean  # currently unused
+        connect: boolean  # currently unused
+        sawDashboard: boolean
+        dismissed: boolean  # legacy, no longer set
+
+        ### Guide flags
+
+        # Main menu strip
+        sawIntro: *guide
+        visitedReviews: *guide
+        visitedRepositories: *guide
+        showedSupportMenu: *guide
+        showedAccountSettings: *guide
+        signedIn: *guide
+        signedOut: *guide
+
+        # Account settings
+        customizedDiffFont: *guide
+        customizedStylesheet: *guide
+        customizedLineLinkTemplate: *guide
+        customizedKeyBindings: *guide
+        toggledAnimations: *guide
+        adjustedContrast: *guide
+        sawGitHubAuths: *guide
+
+        # Review status bar
+        showedHopdown: *guide
+        sawReviewTitle: *guide
+        showedReviewStatus: *guide
+        nextUnreviewedFile: *guide
+        showedChangesDropdown: *guide
+        customizedReviewCompletion: *guide
+        nextUnrepliedDiscussion: *guide
+        nextUnresolvedDiscussion: *guide
+        nextDraft: *guide
+        showedPublishPreview: *guide
+        published: *guide
+        publishedAsReviewer: *guide
+        setSanction: *guide
+        setAutoRequestReviewers: *guide
+        returnedToMainPage: *guide
+        forcedReviewIncomplete: *guide
+        updatedBranch: *guide
+
+        # Changes segment
+        sawReviewStatus: *guide
+        sawFilesInfo: *guide
+        sawRevisionsInfo: *guide
+        sawCommitsInfo: *guide
+        undidMarkAsReviewed: *guide
+        copiedHeadBranch: *guide
+        editedBaseBranch: *guide
+        selectedReviewStyle: *guide
+        showedFileMatrix: *guide
+        overlappedOtherReviewers: *guide
+
+        # File matrix
+        openedAllFilesInNewTabs: *guide
+        usedFileMatrixHeader: *guide
+        sawReviewers: *guide
+        collapsedFileGroup: *guide
+        markedFileGroupReviewed: *guide
+
+        # Discussions
+        selectedDiscussionRevision: *guide
+        showedOldComments: *guide
+        linkedToLine: *guide
+        sawNewCommentRibbon: *guide
+        sawCommentAuthor: *guide
+        sawTimeAgoDivider: *guide
+        createdReply: *guide
+        createdDoneReply: *guide  # deprecated
+        createdLgtmReply: *guide  # deprecated
+        acknowledgedDiscussion: *guide
+        participants: *guide
+        setRole: *guide
+        setDefaultRole: *guide
+        dismissedParticipant: *guide
+        usedLabels: *guide
+        usedMilestone: *guide  # deprecated
+        sawEmojisSummary: *guide
+
+        # Drafts
+        sawWritingArea: *guide
+        previewedDraft: *guide
+        sawDraftSaved: *guide
+        sawMarkdown: *guide
+        uploadedFile: *guide
+        deletedDraft: *guide
+        sentDraft: *guide
+
+        # Global (multiple locations)
+        markedAllReviewed: *guide
+        setProposedRevRanges: *guide
+        markedFileReviewed: *guide
+        markFileReviewedAndAdvance: *guide
+        clickedOnFilename: *guide
+        usedRevCells: *guide
+        sawStats: *guide
+        sawModes: *guide
+        navigatedToPullRequest: *guide
+        sawBadConnection: *guide
+        sawGitHubStatus: *guide
+        sawPriorArcs: *guide
+        showedFullDiff: *guide
+
+        # Merge button
+        toggledMergeFlavor: *guide
+        toggledBranchDisposition: *guide
+        editedMergeCommitMessage: *guide
+        mergedBranch: *guide
+
+        # Diffs
+        createdLineComment: *guide
+        manipulatedMargin: *guide
+        sawCollapsedMenu: *guide
+        sawCollapsedChanges: *guide
+        expandedDeclaration: *guide
+        expandedCollapsedSectionUpDown: *guide
+        revealedResolvedDiscussions: *guide
+        sawBaseLineMarker: *guide
+        sawWhitespaceLineMarker: *guide
+        forcedFileDiff: *guide
+        viewedFileOnGitHub: *guide
+        createdFileComment: *guide
+
+        # Others on reviews page
+        sawMoreContent: *guide
+        showedTopDiscussion: *guide  # on review page
+        createdTopDraft: *guide
+
+        # Reviews dashboard
+        sawOpenReviews: *guide
+        filteredOpenReviews: *guide
+        sawOpenReviewAuthorAndAssignee: *guide
+        navigatedToOpenReview: *guide
+        sawClosedReview: *guide
+        sawOpenReviewCounters: *guide
+        navigatedToPullRequestFromOpenReview: *guide
+        showedTeamReviews: *guide
+        showedPrivateReviews: *guide
+        includedStalePullRequests: *guide
+        showMoreConcludedPullRequests: *guide
+        openedReviewFromGitHubUrl: *guide
+        toggledShowUnconnectedPullRequests: *guide
+        toggledShowPullRequestsFromPushableRepos: *guide
+        setDefaultReviewsQuery: *guide
+
+        # Repositories dashboard
+        sawConnections: *guide
+        setSeatConstraints: *guide
+        showedAllOrganizations: *guide
+        showedPrivateRepos: *guide
+        sawConnectionsOwner: *guide
+        connectedAll: *guide  # deprecated
+        autoConnected: *guide
+        enrolled: *guide
+        connectedRepo: *guide
+        sawConnector: *guide
+
+        # Repositories settings
+        openedRepoSettings: *guide
+        appliedRepositorySettings: *guide
+        canceledRepositorySettings: *guide
+        selectedAllReposForSettings: *guide
+        clearedAllReposForSettings: *guide
+        selectedRepoForSettings: *guide
+        setSettingsPrototypeRepository: *guide
+        setBadgePlacement: *guide
+        selectedDefaultReviewStyle: *guide
+        setLgtmText: *guide
+        setPermittedMergeFlavors: *guide
+        setDiscussionDismissalRestriction: *guide
+        setGitHubStatusUpdates: *guide
+        editedConditionCode: *guide
+        pickedConditionExample: *guide
+        editedCompletionInfo: *guide
+        loadedCompletionInfo: *guide
+        sawCompletionTestResult: *guide
+        # DEPRECATED
+        addedAllReposForCompletion: *guide
+        appliedReviewCompletionEdits: *guide
+        canceledReviewCompletionEdits: *guide
+        resetCompletionInfo: *guide
+        selectedCompletionReposToModify: *guide
+
+        # Repositories subscription
+        sawSubscriptionDescription: *guide
+        subscribed: *guide
+        subscribedRedundantly: *guide
+        editedSubscription: *guide
+        confirmedSubscriptionEdit: *guide
+        canceledSubscriptionEdit: *guide
+        selectedFreePlan: *guide
+        selectedPaidPlan: *guide
+        selectedSubscriptionCoverage: *guide  # deprecated
+        constrainedContributors: *guide
+        extendedToExtraOrganizations: *guide
+        updatedPaymentCard: *guide
+        enteredPaymentCard: *guide
+        sawReceiptsMemo: *guide
+
+        # All dashboards
+        navigatedToRepoDashboard: *guide
+        navigatedToOrgDashboard: *guide
+
+      settings:
+        .write: userid == $userKey
+        allowInstantSend: boolean
+        mergeFlavor: oneOf('merge', 'squash', 'rebase', 'fastForward')
+        deleteBranchOnMerge: boolean
+        lastDashboardOrganization: string
+        defaultReviewsQuery: string
+        showUnconnectedPullRequests: boolean
+        showPullRequestsFromPushableRepos: boolean
+        showPullRequestsFromStarredReposOnly: boolean
+        showPullRequestsFromWatchedReposOnly: boolean
+        showPullRequestsFromConnectedReposOnly: boolean
+        overlapOtherReviewers: boolean
+        showFileMatrix: boolean
+        onboardingPromptsStartTimestamp: number
+        forceSingleColumn: boolean
+        margin: number
+        contrast: number && next >= 10 && next <= 100
+        # New discussions are actually not allowed to start as 'satisfied', this will be automatically
+        # mapped to 'informing' instead.
+        defaultNewDiscussionRole: oneOf('satisfied', 'discussing', 'blocking', 'working', 'informing')
+        defaultNewAsAuthorDiscussionRole: oneOf('satisfied', 'discussing', 'blocking', 'working', 'informing')
+        defaultJoinedDiscussionRole: oneOf('satisfied', 'discussing', 'blocking', 'working')
+        defaultJoinedAsAuthorDiscussionRole: oneOf('satisfied', 'discussing', 'blocking', 'working')
+        defaultDoneDiscussionRole: oneOf('satisfied', 'discussing', 'blocking')  # deprecated
+        trustButVerify: boolean
+        autoRequestReviewers: boolean
+        imageComparisonMode: oneOf('side', 'swipe', 'onion', 'blink') # deprecated
+        animation: boolean
+        syntaxStylesheetUrl: encrypted string
+        monospaceFont:
+          family: encrypted string
+          size: string
+        lineLinkTemplate: encrypted string
+        keyBindingsUrl: encrypted string
+        dismissals:
+          repoConnectionPrompt:
+            $ownerRepo/encrypted[#|#]/few: boolean
+          memberWelcome:
+            $membershipKey/encrypted/few: boolean
+        collapse:
+          whitespace: boolean
+          groups:
+            $groupName: boolean
+        adminHelperOptOut: boolean  # if true, don't use account to help overloaded connections
+      state:
+        .write: userid == $userKey
+        $reviewKey:  # can't check isReview($reviewKey), might not be written yet
+          visited: next == true
+          sanction: oneOf('commented', 'approved', 'changes_requested')
+          autoRequestReviewers: boolean
+          drafts:
+            $draftKey/few: &draft  # matches discussionKey for replies, otherwise becomes discussionKey
+              revisionKey: string && isRevision($reviewKey, next)
+              revisionBase: boolean  # if true, use revision's base commit
+              otherRevisionKey: string && isRevision($reviewKey, next)
+              otherRevisionBase: boolean  # if true, use other revision's base commit
+              fileKey: string && isFile($reviewKey, next)
+              line: number
+              commentKey: required string
+              creationTimestamp: number  # time when draft was created
+              timestamp: required number  # time draft was last updated
+              markdownBody: encrypted string
+              bodyHash: string
+              htmlBody: encrypted string  # deprecated
+              htmlBodies:
+                $hashKey/few: encrypted string
+              role: required oneOf('satisfied', 'discussing', 'blocking', 'working', 'informing', 'following', 'withdrawn')
+              roleSetManually: boolean
+              intent: oneOf('fyi', 'ok')  # deprecated
+              postingAttempted: boolean
+          trash:
+            $locationKey/few:  # 'detached' if no fileKey, etc.
+              $draftKey/few: *draft  # matches discussionKey for replies
+          roleChanges:
+            $discussionKey:
+              isDiscussion($reviewKey, $discussionKey) &&
+              oneOf('satisfied', 'discussing', 'blocking', 'working', 'following')
+          acknowledgements:
+            $discussionKey: isDiscussion($reviewKey, $discussionKey) && number  # acknowledgement timestamp
+          dismissals:
+            $dismissalKey:  # discussionKey|targetUserKey
+              .value: $dismissalKey == next.discussionKey + '|' + next.targetUserKey
+              discussionKey: required isDiscussion($reviewKey, next)
+              targetUserKey: required isParticipant($reviewKey, next.parent().discussionKey, next)
+          marks:
+            $fileKey/few:
+              .value: isFile($reviewKey, $fileKey)
+              revisions:
+                $revisionKey/few:
+                  .value: isRevision($reviewKey, $revisionKey)
+                  reviewed: required next == true
+          settings:
+            overlapOtherReviewers: boolean
+            collapse:
+              whitespace: boolean
+              groups:
+                $groupName: boolean
+            mergeFlavor: oneOf('merge', 'squash', 'rebase', 'fastForward')
+            deleteBranchOnMerge: boolean
+            mergeCommitMessage: encrypted string
+
